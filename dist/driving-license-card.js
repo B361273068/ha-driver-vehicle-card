@@ -1,3 +1,4 @@
+// 主卡片类
 class DrivingLicenseCard extends HTMLElement {
   constructor() {
     super();
@@ -7,7 +8,6 @@ class DrivingLicenseCard extends HTMLElement {
   }
 
   setConfig(config) {
-    // 设置默认配置
     this._config = {
       title: '驾驶证和车辆状态',
       users: [],
@@ -15,7 +15,6 @@ class DrivingLicenseCard extends HTMLElement {
       ...config
     };
 
-    // 确保至少有一个用户和车辆配置
     if (!this._config.users || this._config.users.length === 0) {
       this._config.users = [{
         name: '请配置姓名',
@@ -47,39 +46,29 @@ class DrivingLicenseCard extends HTMLElement {
   }
 
   getCardSize() {
-    // 根据配置的用户和车辆数量动态计算卡片大小
-    let size = 1; // 基础大小
-    size += this._config.users.length * 4; // 每个用户4行
-    size += this._config.vehicles.length * 4; // 每辆车4行
+    let size = 1;
+    size += this._config.users.length * 4;
+    size += this._config.vehicles.length * 4;
     return size;
   }
 
-  // 计算两个日期之间的天数差
   calculateDaysDifference(dateString) {
     if (!dateString) return '未知';
-    
     const today = new Date();
     const targetDate = new Date(dateString);
-    
-    // 检查日期是否有效
     if (isNaN(targetDate.getTime())) return '无效日期';
-    
     const diffTime = targetDate - today;
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
     return diffDays > 0 ? diffDays : 0;
   }
 
-  // 获取实体状态
   getEntityState(entityId) {
     if (!this._hass || !entityId) return null;
     return this._hass.states[entityId];
   }
 
-  // 获取状态颜色
   getStatusColor(status) {
     if (!status) return 'text-gray-600';
-    
     status = status.toLowerCase();
     if (status.includes('正常')) return 'text-green-600';
     if (status.includes('警告') || status.includes('即将到期')) return 'text-orange-500';
@@ -87,7 +76,6 @@ class DrivingLicenseCard extends HTMLElement {
     return 'text-gray-600';
   }
 
-  // 获取倒计时颜色
   getCountdownColor(days) {
     if (days === '未知' || days === '无效日期') return 'text-gray-600';
     if (days < 0) return 'text-red-600';
@@ -95,13 +83,10 @@ class DrivingLicenseCard extends HTMLElement {
     return 'text-green-600';
   }
 
-  // 获取扣分颜色
   getPointsColor(points, maxPoints = 12) {
     if (points === '未知') return 'text-gray-600';
-    
     const pointsValue = parseInt(points);
     if (isNaN(pointsValue)) return 'text-gray-600';
-    
     const percentage = pointsValue / maxPoints;
     if (percentage >= 0.75) return 'text-red-600';
     if (percentage >= 0.5) return 'text-orange-500';
@@ -111,11 +96,9 @@ class DrivingLicenseCard extends HTMLElement {
   render() {
     if (!this._hass || !this._config) return;
 
-    // 加载Tailwind CSS
     const tailwindUrl = 'https://cdn.tailwindcss.com';
     const fontAwesomeUrl = 'https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css';
 
-    // 获取当前时间用于最后更新时间
     const now = new Date();
     const lastUpdated = now.toLocaleString('zh-CN', {
       year: 'numeric',
@@ -126,7 +109,6 @@ class DrivingLicenseCard extends HTMLElement {
       second: '2-digit'
     });
 
-    // 渲染用户驾驶证信息
     const renderUserSections = () => {
       return this._config.users.map((user, index) => {
         const expiryEntity = this.getEntityState(user.entities?.license_expiry);
@@ -172,7 +154,6 @@ class DrivingLicenseCard extends HTMLElement {
       }).join('');
     };
 
-    // 渲染车辆信息
     const renderVehicleSections = () => {
       return this._config.vehicles.map((vehicle, index) => {
         const inspectionEntity = this.getEntityState(vehicle.entities?.inspection_date);
@@ -218,7 +199,6 @@ class DrivingLicenseCard extends HTMLElement {
       }).join('');
     };
 
-    // 卡片HTML结构
     this.shadowRoot.innerHTML = `
       <style>
         @import url('${tailwindUrl}');
@@ -300,12 +280,14 @@ class DrivingLicenseEditor extends HTMLElement {
       <style>
         .editor-container {
           padding: 16px;
+          font-family: var(--paper-font-body1_-_font-family);
         }
         .section {
           margin-bottom: 20px;
           padding: 16px;
           border: 1px solid var(--divider-color, #e0e0e0);
           border-radius: 8px;
+          background: var(--card-background-color, white);
         }
         .section-title {
           font-size: 18px;
@@ -320,6 +302,7 @@ class DrivingLicenseEditor extends HTMLElement {
           display: block;
           margin-bottom: 8px;
           font-weight: 500;
+          color: var(--primary-text-color, #212121);
         }
         .form-control {
           width: 100%;
@@ -327,6 +310,8 @@ class DrivingLicenseEditor extends HTMLElement {
           border: 1px solid var(--divider-color, #e0e0e0);
           border-radius: 4px;
           background: var(--card-background-color, white);
+          color: var(--primary-text-color, #212121);
+          font-size: 14px;
         }
         .config-item {
           position: relative;
@@ -360,6 +345,7 @@ class DrivingLicenseEditor extends HTMLElement {
           padding: 8px 16px;
           cursor: pointer;
           margin-top: 8px;
+          font-size: 14px;
         }
         .add-btn:hover {
           background: var(--dark-primary-color, #0288d1);
@@ -719,7 +705,7 @@ class DrivingLicenseEditor extends HTMLElement {
   }
 }
 
-// 自动注册卡片和编辑器
+// 注册卡片和编辑器
 if (!customElements.get('driving-license-card')) {
   customElements.define('driving-license-card', DrivingLicenseCard);
 }
@@ -728,7 +714,7 @@ if (!customElements.get('driving-license-editor')) {
   customElements.define('driving-license-editor', DrivingLicenseEditor);
 }
 
-// 注册到 HACS
+// 注册到 HACS 和 Lovelace
 window.customCards = window.customCards || [];
 window.customCards.push({
   type: 'driving-license-card',
@@ -738,4 +724,4 @@ window.customCards.push({
   documentationURL: 'https://github.com/B361273068/ha-driving-license-card'
 });
 
-console.log('Driving License Card automatically registered');
+console.log('Driving License Card with visual editor loaded successfully');
