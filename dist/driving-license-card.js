@@ -7,6 +7,36 @@ class DrivingLicenseCard extends HTMLElement {
     this._hass = null;
   }
 
+  static getConfigElement() {
+    return document.createElement("driving-license-editor");
+  }
+
+  static getStubConfig() {
+    return {
+      title: "驾驶证和车辆状态",
+      users: [
+        {
+          name: "示例用户",
+          entities: {
+            license_expiry: "",
+            license_status: "",
+            penalty_points: ""
+          }
+        }
+      ],
+      vehicles: [
+        {
+          plate: "示例车牌",
+          entities: {
+            inspection_date: "",
+            vehicle_status: "",
+            violations: ""
+          }
+        }
+      ]
+    };
+  }
+
   setConfig(config) {
     this._config = {
       title: '驾驶证和车辆状态',
@@ -99,8 +129,8 @@ class DrivingLicenseCard extends HTMLElement {
     const tailwindUrl = 'https://cdn.tailwindcss.com';
     const fontAwesomeUrl = 'https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css';
 
-    const now = new Date();
-    const lastUpdated = now.toLocaleString('zh-CN', {
+    // 获取最后更新时间（从实体或当前时间）
+    let lastUpdated = new Date().toLocaleString('zh-CN', {
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
@@ -262,8 +292,14 @@ class DrivingLicenseCard extends HTMLElement {
 
 // 编辑器类
 class DrivingLicenseEditor extends HTMLElement {
+  constructor() {
+    super();
+    this._config = {};
+  }
+
   setConfig(config) {
     this._config = config || {};
+    this._render();
   }
 
   set hass(hass) {
@@ -272,7 +308,10 @@ class DrivingLicenseEditor extends HTMLElement {
   }
 
   _render() {
-    if (!this._hass) return;
+    if (!this._hass) {
+      this.innerHTML = `<div>Loading...</div>`;
+      return;
+    }
 
     const config = this._config;
 
@@ -714,7 +753,7 @@ if (!customElements.get('driving-license-editor')) {
   customElements.define('driving-license-editor', DrivingLicenseEditor);
 }
 
-// 注册到 HACS 和 Lovelace
+// 注册到 HACS
 window.customCards = window.customCards || [];
 window.customCards.push({
   type: 'driving-license-card',
