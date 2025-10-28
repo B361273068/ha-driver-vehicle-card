@@ -516,7 +516,7 @@ class DrivingLicenseCard extends HTMLElement {
   }
 }
 
-// 编辑器类 - 完全重写输入处理
+// 编辑器类 - 使用Home Assistant标准实体选择器样式
 class DrivingLicenseEditor extends HTMLElement {
   constructor() {
     super();
@@ -545,95 +545,77 @@ class DrivingLicenseEditor extends HTMLElement {
     this.innerHTML = `
       <style>
         .editor-container {
-          padding: 20px;
+          padding: 16px;
           font-family: var(--paper-font-body1_-_font-family);
           background: var(--card-background-color);
         }
         
         .section {
           margin-bottom: 24px;
-          padding: 20px;
+          padding: 16px;
           border: 1px solid var(--divider-color, #e0e0e0);
-          border-radius: 12px;
+          border-radius: 8px;
           background: var(--card-background-color, white);
-          box-shadow: 0 2px 4px rgba(0,0,0,0.05);
         }
         
         .section-title {
-          font-size: 18px;
-          font-weight: 600;
-          color: var(--primary-color, #03a9f4);
-          margin-bottom: 20px;
-          padding-bottom: 12px;
-          border-bottom: 2px solid var(--primary-color);
-          display: flex;
-          align-items: center;
-          gap: 8px;
-        }
-        
-        .section-title::before {
-          content: "📋";
           font-size: 16px;
+          font-weight: 600;
+          color: var(--primary-text-color, #212121);
+          margin-bottom: 16px;
+          padding-bottom: 8px;
+          border-bottom: 1px solid var(--divider-color);
         }
         
         .form-group {
-          margin-bottom: 20px;
+          margin-bottom: 16px;
         }
         
         .form-label {
           display: block;
           margin-bottom: 8px;
-          font-weight: 600;
+          font-weight: 500;
           color: var(--primary-text-color, #212121);
           font-size: 14px;
         }
         
-        .form-control {
+        .text-input {
           width: 100%;
-          padding: 12px 16px;
-          border: 2px solid var(--divider-color, #e0e0e0);
-          border-radius: 8px;
+          padding: 8px 12px;
+          border: 1px solid var(--divider-color, #e0e0e0);
+          border-radius: 4px;
           background: var(--card-background-color, white);
           color: var(--primary-text-color, #212121);
           font-size: 14px;
-          transition: border-color 0.3s ease;
           box-sizing: border-box;
         }
         
-        .form-control:focus {
+        .text-input:focus {
           outline: none;
           border-color: var(--primary-color, #03a9f4);
         }
         
-        .form-control[type="text"] {
-          -webkit-user-select: text;
-          -moz-user-select: text;
-          -ms-user-select: text;
-          user-select: text;
-        }
-        
         .config-item {
           position: relative;
-          padding: 20px;
-          margin-bottom: 20px;
-          border: 2px solid var(--divider-color, #e0e0e0);
-          border-radius: 12px;
+          padding: 16px;
+          margin-bottom: 16px;
+          border: 1px solid var(--divider-color, #e0e0e0);
+          border-radius: 8px;
           background: var(--secondary-background-color, #f8f9fa);
         }
         
         .remove-btn {
           position: absolute;
-          top: 16px;
-          right: 16px;
+          top: 12px;
+          right: 12px;
           background: var(--error-color, #f44336);
           color: white;
           border: none;
-          border-radius: 6px;
-          padding: 8px 12px;
+          border-radius: 4px;
+          padding: 6px 10px;
           cursor: pointer;
           font-size: 12px;
-          font-weight: 600;
-          transition: background-color 0.3s ease;
+          font-weight: 500;
         }
         
         .remove-btn:hover {
@@ -649,16 +631,15 @@ class DrivingLicenseEditor extends HTMLElement {
           background: var(--primary-color, #03a9f4);
           color: white;
           border: none;
-          border-radius: 8px;
-          padding: 12px 20px;
+          border-radius: 4px;
+          padding: 10px 16px;
           cursor: pointer;
-          margin-top: 12px;
+          margin-top: 8px;
           font-size: 14px;
-          font-weight: 600;
-          transition: background-color 0.3s ease;
+          font-weight: 500;
           display: flex;
           align-items: center;
-          gap: 8px;
+          gap: 6px;
         }
         
         .add-btn:hover {
@@ -668,29 +649,34 @@ class DrivingLicenseEditor extends HTMLElement {
         .grid-2 {
           display: grid;
           grid-template-columns: 1fr 1fr;
-          gap: 20px;
+          gap: 16px;
         }
         
         .help-text {
           font-size: 12px;
           color: var(--secondary-text-color, #757575);
-          margin-top: 6px;
+          margin-top: 4px;
           font-style: italic;
         }
         
         .checkbox-group {
           display: flex;
           align-items: center;
-          gap: 12px;
-          padding: 12px 0;
+          gap: 8px;
+          padding: 8px 0;
         }
         
         .checkbox-group input[type="checkbox"] {
-          width: 18px;
-          height: 18px;
+          width: 16px;
+          height: 16px;
         }
         
-        .entity-select {
+        /* Home Assistant 标准实体选择器样式 */
+        .entity-picker {
+          width: 100%;
+        }
+        
+        .entity-picker ha-entity-picker {
           width: 100%;
         }
         
@@ -710,15 +696,15 @@ class DrivingLicenseEditor extends HTMLElement {
         @media (max-width: 768px) {
           .grid-2 {
             grid-template-columns: 1fr;
-            gap: 16px;
+            gap: 12px;
           }
           
           .editor-container {
-            padding: 16px;
+            padding: 12px;
           }
           
           .section {
-            padding: 16px;
+            padding: 12px;
           }
         }
       </style>
@@ -731,7 +717,7 @@ class DrivingLicenseEditor extends HTMLElement {
             <label class="form-label">卡片标题</label>
             <input
               type="text"
-              class="form-control no-voice-assistant"
+              class="text-input no-voice-assistant"
               value="${config.title || '驾驶证和车辆状态'}"
               placeholder="输入卡片标题"
               id="card-title-input"
@@ -751,20 +737,16 @@ class DrivingLicenseEditor extends HTMLElement {
           </div>
           <div class="form-group">
             <label class="form-label">最后更新时间实体</label>
-            ${this._renderEntitySelector(
-              '选择最后更新时间实体',
-              config.last_update_entity || '',
-              -1,
-              'last_update_entity',
-              'config'
-            )}
+            <div class="entity-picker">
+              ${this._renderEntityPicker(config.last_update_entity || '', 'last_update_entity', 'config')}
+            </div>
             <div class="help-text">选择用于显示最后更新时间的实体（可选）</div>
           </div>
         </div>
 
         <!-- 用户配置 -->
         <div class="section">
-          <div class="section-title">👤 驾驶证信息配置</div>
+          <div class="section-title">驾驶证信息配置</div>
           <div id="users-container">
             ${this._renderUsers()}
           </div>
@@ -775,7 +757,7 @@ class DrivingLicenseEditor extends HTMLElement {
 
         <!-- 车辆配置 -->
         <div class="section">
-          <div class="section-title">🚗 车辆信息配置</div>
+          <div class="section-title">车辆信息配置</div>
           <div id="vehicles-container">
             ${this._renderVehicles()}
           </div>
@@ -786,10 +768,10 @@ class DrivingLicenseEditor extends HTMLElement {
 
         <!-- 使用说明 -->
         <div class="section">
-          <div class="section-title">📖 使用说明</div>
+          <div class="section-title">使用说明</div>
           <div style="font-size: 14px; color: var(--secondary-text-color, #757575); line-height: 1.6;">
             <p><strong>实体配置要求：</strong></p>
-            <ul style="margin: 12px 0; padding-left: 20px;">
+            <ul style="margin: 8px 0; padding-left: 16px;">
               <li><strong>驾驶证有效期</strong>：日期格式传感器 (YYYY-MM-DD)</li>
               <li><strong>驾驶证状态</strong>：文本状态传感器 (正常/警告/过期)</li>
               <li><strong>扣分情况</strong>：数字类型传感器</li>
@@ -817,10 +799,10 @@ class DrivingLicenseEditor extends HTMLElement {
         </button>
         
         <div class="form-group">
-          <label class="form-label">👤 用户姓名</label>
+          <label class="form-label">用户姓名</label>
           <input
             type="text"
-            class="form-control no-voice-assistant user-name"
+            class="text-input no-voice-assistant user-name"
             value="${user.name || ''}"
             placeholder="请输入用户姓名"
             data-index="${index}"
@@ -829,29 +811,29 @@ class DrivingLicenseEditor extends HTMLElement {
         </div>
         
         <div class="grid-2">
-          ${this._renderEntitySelector(
-            '📅 驾驶证有效期实体',
-            user.entities?.license_expiry,
-            index,
-            'license_expiry',
-            'user'
-          )}
+          <div class="form-group">
+            <label class="form-label">驾驶证有效期实体</label>
+            <div class="entity-picker">
+              ${this._renderEntityPicker(user.entities?.license_expiry || '', 'license_expiry', 'user', index)}
+            </div>
+            <div class="help-text">选择驾驶证有效期实体</div>
+          </div>
           
-          ${this._renderEntitySelector(
-            '📊 驾驶证状态实体',
-            user.entities?.license_status,
-            index,
-            'license_status',
-            'user'
-          )}
+          <div class="form-group">
+            <label class="form-label">驾驶证状态实体</label>
+            <div class="entity-picker">
+              ${this._renderEntityPicker(user.entities?.license_status || '', 'license_status', 'user', index)}
+            </div>
+            <div class="help-text">选择驾驶证状态实体</div>
+          </div>
           
-          ${this._renderEntitySelector(
-            '⚠️ 扣分情况实体',
-            user.entities?.penalty_points,
-            index,
-            'penalty_points',
-            'user'
-          )}
+          <div class="form-group">
+            <label class="form-label">扣分情况实体</label>
+            <div class="entity-picker">
+              ${this._renderEntityPicker(user.entities?.penalty_points || '', 'penalty_points', 'user', index)}
+            </div>
+            <div class="help-text">选择扣分情况实体</div>
+          </div>
         </div>
       </div>
     `).join('');
@@ -866,68 +848,54 @@ class DrivingLicenseEditor extends HTMLElement {
         </button>
         
         <div class="form-group">
-          <label class="form-label">🚗 车牌号码实体</label>
-          ${this._renderEntitySelector(
-            '选择车牌号码实体',
-            vehicle.plate_entity,
-            index,
-            'plate_entity',
-            'vehicle_plate'
-          )}
+          <label class="form-label">车牌号码实体</label>
+          <div class="entity-picker">
+            ${this._renderEntityPicker(vehicle.plate_entity || '', 'plate_entity', 'vehicle_plate', index)}
+          </div>
           <div class="help-text">选择包含车牌号码的传感器实体</div>
         </div>
         
         <div class="grid-2">
-          ${this._renderEntitySelector(
-            '📅 年审日期实体',
-            vehicle.entities?.inspection_date,
-            index,
-            'inspection_date',
-            'vehicle'
-          )}
+          <div class="form-group">
+            <label class="form-label">年审日期实体</label>
+            <div class="entity-picker">
+              ${this._renderEntityPicker(vehicle.entities?.inspection_date || '', 'inspection_date', 'vehicle', index)}
+            </div>
+            <div class="help-text">选择年审日期实体</div>
+          </div>
           
-          ${this._renderEntitySelector(
-            '📊 车辆状态实体',
-            vehicle.entities?.vehicle_status,
-            index,
-            'vehicle_status',
-            'vehicle'
-          )}
+          <div class="form-group">
+            <label class="form-label">车辆状态实体</label>
+            <div class="entity-picker">
+              ${this._renderEntityPicker(vehicle.entities?.vehicle_status || '', 'vehicle_status', 'vehicle', index)}
+            </div>
+            <div class="help-text">选择车辆状态实体</div>
+          </div>
           
-          ${this._renderEntitySelector(
-            '🚨 违章信息实体',
-            vehicle.entities?.violations,
-            index,
-            'violations',
-            'vehicle'
-          )}
+          <div class="form-group">
+            <label class="form-label">违章信息实体</label>
+            <div class="entity-picker">
+              ${this._renderEntityPicker(vehicle.entities?.violations || '', 'violations', 'vehicle', index)}
+            </div>
+            <div class="help-text">选择违章信息实体</div>
+          </div>
         </div>
       </div>
     `).join('');
   }
 
-  _renderEntitySelector(label, selectedValue, index, field, type = 'user') {
-    const entities = this._getEntities();
-    let options = '<option value="">-- 选择实体 --</option>';
-    entities.forEach(entity => {
-      const selected = entity === selectedValue ? 'selected' : '';
-      options += `<option value="${entity}" ${selected}>${entity}</option>`;
-    });
-    
+  _renderEntityPicker(selectedValue, field, type, index = -1) {
+    // 使用Home Assistant的标准实体选择器
     return `
-      <div class="form-group">
-        <label class="form-label">${label}</label>
-        <select class="form-control entity-select" data-type="${type}" data-index="${index}" data-field="${field}">
-          ${options}
-        </select>
-        <div class="help-text">从列表中选择对应的传感器实体</div>
-      </div>
+      <ha-entity-picker
+        .hass="${this._hass}"
+        .value="${selectedValue}"
+        data-field="${field}"
+        data-type="${type}"
+        data-index="${index}"
+        allow-custom-entity
+      ></ha-entity-picker>
     `;
-  }
-
-  _getEntities() {
-    if (!this._hass) return [];
-    return Object.keys(this._hass.states).sort();
   }
 
   _getDefaultUser() {
@@ -953,7 +921,7 @@ class DrivingLicenseEditor extends HTMLElement {
   }
 
   _bindEvents() {
-    // 使用更彻底的事件处理方案
+    // 设置输入框处理器
     this._setupInputHandlers();
     
     // 复选框更新
@@ -964,23 +932,25 @@ class DrivingLicenseEditor extends HTMLElement {
       });
     }
 
-    // 实体选择器更新
-    this.querySelectorAll('.entity-select').forEach((select) => {
-      select.addEventListener('change', (e) => {
-        const type = e.target.getAttribute('data-type');
-        const index = parseInt(e.target.getAttribute('data-index'));
-        const field = e.target.getAttribute('data-field');
+    // 实体选择器更新 - 使用事件委托
+    this.addEventListener('value-changed', (e) => {
+      const target = e.target;
+      if (target.tagName === 'HA-ENTITY-PICKER') {
+        const type = target.getAttribute('data-type');
+        const index = parseInt(target.getAttribute('data-index'));
+        const field = target.getAttribute('data-field');
+        const value = e.detail.value;
         
         if (type === 'user') {
-          this._updateUserField(index, `entities.${field}`, e.target.value);
+          this._updateUserField(index, `entities.${field}`, value);
         } else if (type === 'vehicle_plate') {
-          this._updateVehicleField(index, 'plate_entity', e.target.value);
+          this._updateVehicleField(index, 'plate_entity', value);
+        } else if (type === 'vehicle') {
+          this._updateVehicleField(index, `entities.${field}`, value);
         } else if (type === 'config') {
-          this._updateConfig(field, e.target.value);
-        } else {
-          this._updateVehicleField(index, `entities.${field}`, e.target.value);
+          this._updateConfig(field, value);
         }
-      });
+      }
     });
 
     // 删除按钮事件
@@ -1073,19 +1043,10 @@ class DrivingLicenseEditor extends HTMLElement {
           this._updateConfig('title', newInput.value);
         }
       });
-      
-      // 防止拖拽等操作
-      newInput.addEventListener('dragstart', stopAllEvents);
-      newInput.addEventListener('drop', stopAllEvents);
     };
 
     // 设置所有输入框
     this.querySelectorAll('.no-voice-assistant').forEach(setupInputHandler);
-  }
-
-  _getParentIndex(element) {
-    const parent = element.closest('.config-item');
-    return parent ? parseInt(parent.getAttribute('data-index')) : 0;
   }
 
   _updateConfig(key, value) {
