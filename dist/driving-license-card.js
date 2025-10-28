@@ -1,4 +1,4 @@
-// 主卡片类
+// 主卡片类保持不变
 class DrivingLicenseCard extends HTMLElement {
   constructor() {
     super();
@@ -516,7 +516,7 @@ class DrivingLicenseCard extends HTMLElement {
   }
 }
 
-// 编辑器类 - 使用Home Assistant标准实体选择器
+// 编辑器类 - 修复实体选择器问题
 class DrivingLicenseEditor extends HTMLElement {
   constructor() {
     super();
@@ -877,16 +877,15 @@ class DrivingLicenseEditor extends HTMLElement {
   }
 
   _renderEntityPicker(selectedValue, field, type, index = -1) {
-    // 创建Home Assistant标准实体选择器
+    // 创建实体选择器占位符，稍后通过JavaScript初始化
     return `
-      <ha-entity-picker
-        .hass="${this._hass}"
-        .value="${selectedValue}"
-        data-field="${field}"
-        data-type="${type}"
+      <div 
+        class="entity-picker-placeholder" 
+        data-value="${selectedValue}" 
+        data-field="${field}" 
+        data-type="${type}" 
         data-index="${index}"
-        allow-custom-entity
-      ></ha-entity-picker>
+      ></div>
     `;
   }
 
@@ -924,8 +923,8 @@ class DrivingLicenseEditor extends HTMLElement {
       });
     }
 
-    // 实体选择器更新 - 使用MutationObserver监听变化
-    this._setupEntityPickerListeners();
+    // 初始化实体选择器
+    this._initializeEntityPickers();
 
     // 删除按钮事件
     this.querySelectorAll('.remove-btn[data-user-index]').forEach((btn) => {
@@ -959,51 +958,51 @@ class DrivingLicenseEditor extends HTMLElement {
     });
   }
 
-  _setupEntityPickerListeners() {
-    // 使用MutationObserver监听实体选择器的创建
-    const observer = new MutationObserver((mutations) => {
-      mutations.forEach((mutation) => {
-        mutation.addedNodes.forEach((node) => {
-          if (node.nodeType === 1) { // Element node
-            const entityPickers = node.querySelectorAll ? node.querySelectorAll('ha-entity-picker') : [];
-            entityPickers.forEach((picker) => {
-              this._setupEntityPicker(picker);
-            });
-          }
-        });
+  _initializeEntityPickers() {
+    // 初始化所有实体选择器占位符
+    this.querySelectorAll('.entity-picker-placeholder').forEach((placeholder) => {
+      const value = placeholder.getAttribute('data-value');
+      const field = placeholder.getAttribute('data-field');
+      const type = placeholder.getAttribute('data-type');
+      const index = placeholder.getAttribute('data-index');
+      
+      // 创建实体选择器
+      const entityPicker = document.createElement('ha-entity-picker');
+      entityPicker.hass = this._hass;
+      entityPicker.value = value;
+      entityPicker.allowCustomEntity = true;
+      
+      // 设置数据属性
+      entityPicker.setAttribute('data-field', field);
+      entityPicker.setAttribute('data-type', type);
+      entityPicker.setAttribute('data-index', index);
+      
+      // 添加事件监听
+      entityPicker.addEventListener('value-changed', (e) => {
+        this._handleEntityPickerChange(e);
       });
-    });
-
-    observer.observe(this, {
-      childList: true,
-      subtree: true
-    });
-
-    // 设置现有的实体选择器
-    this.querySelectorAll('ha-entity-picker').forEach((picker) => {
-      this._setupEntityPicker(picker);
+      
+      // 替换占位符
+      placeholder.parentNode.replaceChild(entityPicker, placeholder);
     });
   }
 
-  _setupEntityPicker(picker) {
-    // 设置实体选择器的事件监听
-    picker.addEventListener('value-changed', (e) => {
-      const target = e.target;
-      const type = target.getAttribute('data-type');
-      const index = parseInt(target.getAttribute('data-index'));
-      const field = target.getAttribute('data-field');
-      const value = e.detail.value;
-      
-      if (type === 'user') {
-        this._updateUserField(index, `entities.${field}`, value);
-      } else if (type === 'vehicle_plate') {
-        this._updateVehicleField(index, 'plate_entity', value);
-      } else if (type === 'vehicle') {
-        this._updateVehicleField(index, `entities.${field}`, value);
-      } else if (type === 'config') {
-        this._updateConfig(field, value);
-      }
-    });
+  _handleEntityPickerChange(e) {
+    const target = e.target;
+    const type = target.getAttribute('data-type');
+    const index = parseInt(target.getAttribute('data-index'));
+    const field = target.getAttribute('data-field');
+    const value = e.detail.value;
+    
+    if (type === 'user') {
+      this._updateUserField(index, `entities.${field}`, value);
+    } else if (type === 'vehicle_plate') {
+      this._updateVehicleField(index, 'plate_entity', value);
+    } else if (type === 'vehicle') {
+      this._updateVehicleField(index, `entities.${field}`, value);
+    } else if (type === 'config') {
+      this._updateConfig(field, value);
+    }
   }
 
   _setupInputHandlers() {
