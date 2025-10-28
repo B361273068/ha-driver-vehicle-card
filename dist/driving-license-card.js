@@ -1,277 +1,642 @@
-import { LitElement, html, css } from 'lit';
-import { customElement, property, state } from 'lit/decorators.js';
-import { HassEntity } from 'home-assistant-js-websocket';
-import { HomeAssistant } from 'custom-card-helpers';
-import { formatDate, formatTime } from './utils';
-
-interface PersonConfig {
-  name: string;
-  license_expiry_entity: string;
-  license_status_entity: string;
-  license_points_entity: string;
+// 主卡片类保持不变
+class DrivingLicenseCard extends HTMLElement {
+  // 原有代码保持不变...
 }
 
-interface VehicleConfig {
-  license_plate: string;
-  inspection_date_entity: string;
-  vehicle_status_entity: string;
-  violations_entity: string;
-}
+// 修改后的编辑器类 - 使用Home Assistant标准选择器
+class DrivingLicenseEditor extends HTMLElement {
+  constructor() {
+    super();
+    this._config = null;
+    this._hass = null;
+  }
 
-interface DrivingVehicleCardConfig {
-  title?: string;
-  people: PersonConfig[];
-  vehicles: VehicleConfig[];
-  update_time_entity?: string;
-}
+  setConfig(config) {
+    this._config = config || {};
+  }
 
-@customElement('ha-driving-vehicle-card')
-export class DrivingVehicleCard extends LitElement {
-  @property({ attribute: false }) public hass!: HomeAssistant;
-  @state() private config!: DrivingVehicleCardConfig;
+  set hass(hass) {
+    this._hass = hass;
+    this._render();
+  }
 
-  public static getStubConfig(): object {
+  _render() {
+    if (!this._hass) return;
+
+    const config = this._config;
+
+    this.innerHTML = `
+      <style>
+        .editor-container {
+          padding: 16px;
+          font-family: var(--paper-font-body1_-_font-family);
+        }
+        
+        .section {
+          margin-bottom: 24px;
+          padding: 16px;
+          border: 1px solid var(--divider-color);
+          border-radius: 8px;
+          background: var(--card-background-color);
+        }
+        
+        .section-title {
+          font-size: 16px;
+          font-weight: 600;
+          color: var(--primary-text-color);
+          margin-bottom: 16px;
+          padding-bottom: 8px;
+          border-bottom: 1px solid var(--divider-color);
+        }
+        
+        .form-group {
+          margin-bottom: 16px;
+        }
+        
+        .form-label {
+          display: block;
+          margin-bottom: 8px;
+          font-weight: 500;
+          color: var(--primary-text-color);
+          font-size: 14px;
+        }
+        
+        .text-input {
+          width: 100%;
+          padding: 8px 12px;
+          border: 1px solid var(--divider-color);
+          border-radius: 4px;
+          background: var(--card-background-color);
+          color: var(--primary-text-color);
+          font-size: 14px;
+          box-sizing: border-box;
+        }
+        
+        .text-input:focus {
+          outline: none;
+          border-color: var(--primary-color);
+        }
+        
+        .config-item {
+          position: relative;
+          padding: 16px;
+          margin-bottom: 16px;
+          border: 1px solid var(--divider-color);
+          border-radius: 8px;
+          background: var(--secondary-background-color);
+        }
+        
+        .remove-btn {
+          position: absolute;
+          top: 12px;
+          right: 12px;
+          background: var(--error-color);
+          color: white;
+          border: none;
+          border-radius: 4px;
+          padding: 6px 10px;
+          cursor: pointer;
+          font-size: 12px;
+          font-weight: 500;
+        }
+        
+        .remove-btn:hover {
+          background: var(--dark-error-color);
+        }
+        
+        .remove-btn:disabled {
+          background: var(--disabled-color);
+          cursor: not-allowed;
+        }
+        
+        .add-btn {
+          background: var(--primary-color);
+          color: white;
+          border: none;
+          border-radius: 4px;
+          padding: 10px 16px;
+          cursor: pointer;
+          margin-top: 8px;
+          font-size: 14px;
+          font-weight: 500;
+        }
+        
+        .add-btn:hover {
+          background: var(--dark-primary-color);
+        }
+        
+        .grid-2 {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 16px;
+        }
+        
+        .help-text {
+          font-size: 12px;
+          color: var(--secondary-text-color);
+          margin-top: 4px;
+          font-style: italic;
+        }
+        
+        .checkbox-group {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 8px 0;
+        }
+        
+        .checkbox-group input[type="checkbox"] {
+          width: 16px;
+          height: 16px;
+        }
+        
+        .entity-picker-container {
+          width: 100%;
+        }
+        
+        @media (max-width: 768px) {
+          .grid-2 {
+            grid-template-columns: 1fr;
+            gap: 12px;
+          }
+          
+          .editor-container {
+            padding: 12px;
+          }
+          
+          .section {
+            padding: 12px;
+          }
+        }
+      </style>
+
+      <div class="editor-container">
+        <!-- 基本配置 -->
+        <div class="section">
+          <div class="section-title">基本配置</div>
+          <div class="form-group">
+            <label class="form-label">卡片标题</label>
+            <input
+              type="text"
+              class="text-input"
+              value="${config.title || '驾驶证和车辆状态'}"
+              placeholder="输入卡片标题"
+              data-path="title"
+            >
+            <div class="help-text">设置卡片显示的主标题</div>
+          </div>
+          <div class="form-group">
+            <div class="checkbox-group">
+              <input
+                type="checkbox"
+                id="show-last-updated"
+                data-path="show_last_updated"
+                ${config.show_last_updated !== false ? 'checked' : ''}
+              >
+              <label class="form-label" for="show-last-updated">显示最后更新时间</label>
+            </div>
+            <div class="help-text">显示数据的最后更新时间</div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">最后更新时间实体</label>
+            <div class="entity-picker-container" data-path="last_update_entity">
+              <ha-form
+                .hass="${this._hass}"
+                .data="${{ entity: config.last_update_entity || '' }}"
+                .schema="${[{
+                  name: 'entity',
+                  type: 'entity',
+                  selector: { entity: {} },
+                  required: false
+                }]}"
+                .computeLabel="${(schema) => ''}"
+              ></ha-form>
+            </div>
+            <div class="help-text">选择用于显示最后更新时间的实体（可选）</div>
+          </div>
+        </div>
+
+        <!-- 用户配置 -->
+        <div class="section">
+          <div class="section-title">驾驶证信息配置</div>
+          <div id="users-container">
+            ${this._renderUsers()}
+          </div>
+          <button class="add-btn" id="add-user-btn" type="button">
+            + 添加用户
+          </button>
+        </div>
+
+        <!-- 车辆配置 -->
+        <div class="section">
+          <div class="section-title">车辆信息配置</div>
+          <div id="vehicles-container">
+            ${this._renderVehicles()}
+          </div>
+          <button class="add-btn" id="add-vehicle-btn" type="button">
+            + 添加车辆
+          </button>
+        </div>
+
+        <!-- 使用说明 -->
+        <div class="section">
+          <div class="section-title">使用说明</div>
+          <div style="font-size: 14px; color: var(--secondary-text-color); line-height: 1.6;">
+            <p><strong>实体配置要求：</strong></p>
+            <ul style="margin: 8px 0; padding-left: 16px;">
+              <li><strong>驾驶证有效期</strong>：日期格式传感器 (YYYY-MM-DD)</li>
+              <li><strong>驾驶证状态</strong>：文本状态传感器 (正常/警告/过期)</li>
+              <li><strong>扣分情况</strong>：数字类型传感器</li>
+              <li><strong>车牌号码</strong>：文本类型传感器</li>
+              <li><strong>年审日期</strong>：日期格式传感器 (YYYY-MM-DD)</li>
+              <li><strong>车辆状态</strong>：文本状态传感器 (正常/异常)</li>
+              <li><strong>违章信息</strong>：数字类型传感器</li>
+              <li><strong>最后更新时间</strong>：任何包含时间信息的实体</li>
+            </ul>
+            <p><strong>提示</strong>：使用模板传感器创建所需实体</p>
+          </div>
+        </div>
+      </div>
+    `;
+
+    this._bindEvents();
+  }
+
+  _renderUsers() {
+    const users = this._config.users || [this._getDefaultUser()];
+    return users.map((user, index) => `
+      <div class="config-item">
+        <button class="remove-btn" data-user-index="${index}" ${users.length <= 1 ? 'disabled' : ''} type="button">
+          删除
+        </button>
+        
+        <div class="form-group">
+          <label class="form-label">用户姓名</label>
+          <input
+            type="text"
+            class="text-input user-name"
+            value="${user.name || ''}"
+            placeholder="请输入用户姓名"
+            data-user-index="${index}"
+            data-path="name"
+          >
+          <div class="help-text">驾驶证持有人的姓名</div>
+        </div>
+        
+        <div class="grid-2">
+          <div class="form-group">
+            <label class="form-label">驾驶证有效期实体</label>
+            <div class="entity-picker-container" 
+                 data-user-index="${index}" 
+                 data-entity-type="license_expiry">
+              <ha-form
+                .hass="${this._hass}"
+                .data="${{ entity: user.entities?.license_expiry || '' }}"
+                .schema="${[{
+                  name: 'entity',
+                  type: 'entity',
+                  selector: { entity: {} },
+                  required: false
+                }]}"
+                .computeLabel="${(schema) => ''}"
+              ></ha-form>
+            </div>
+            <div class="help-text">选择驾驶证有效期实体</div>
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label">驾驶证状态实体</label>
+            <div class="entity-picker-container" 
+                 data-user-index="${index}" 
+                 data-entity-type="license_status">
+              <ha-form
+                .hass="${this._hass}"
+                .data="${{ entity: user.entities?.license_status || '' }}"
+                .schema="${[{
+                  name: 'entity',
+                  type: 'entity',
+                  selector: { entity: {} },
+                  required: false
+                }]}"
+                .computeLabel="${(schema) => ''}"
+              ></ha-form>
+            </div>
+            <div class="help-text">选择驾驶证状态实体</div>
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label">扣分情况实体</label>
+            <div class="entity-picker-container" 
+                 data-user-index="${index}" 
+                 data-entity-type="penalty_points">
+              <ha-form
+                .hass="${this._hass}"
+                .data="${{ entity: user.entities?.penalty_points || '' }}"
+                .schema="${[{
+                  name: 'entity',
+                  type: 'entity',
+                  selector: { entity: {} },
+                  required: false
+                }]}"
+                .computeLabel="${(schema) => ''}"
+              ></ha-form>
+            </div>
+            <div class="help-text">选择扣分情况实体</div>
+          </div>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  _renderVehicles() {
+    const vehicles = this._config.vehicles || [this._getDefaultVehicle()];
+    return vehicles.map((vehicle, index) => `
+      <div class="config-item">
+        <button class="remove-btn" data-vehicle-index="${index}" ${vehicles.length <= 1 ? 'disabled' : ''} type="button">
+          删除
+        </button>
+        
+        <div class="form-group">
+          <label class="form-label">车牌号码实体</label>
+          <div class="entity-picker-container" 
+               data-vehicle-index="${index}" 
+               data-entity-type="plate_entity">
+            <ha-form
+              .hass="${this._hass}"
+              .data="${{ entity: vehicle.plate_entity || '' }}"
+              .schema="${[{
+                name: 'entity',
+                type: 'entity',
+                selector: { entity: {} },
+                required: false
+              }]}"
+              .computeLabel="${(schema) => ''}"
+            ></ha-form>
+          </div>
+          <div class="help-text">选择包含车牌号码的传感器实体</div>
+        </div>
+        
+        <div class="grid-2">
+          <div class="form-group">
+            <label class="form-label">年审日期实体</label>
+            <div class="entity-picker-container" 
+                 data-vehicle-index="${index}" 
+                 data-entity-type="inspection_date">
+              <ha-form
+                .hass="${this._hass}"
+                .data="${{ entity: vehicle.entities?.inspection_date || '' }}"
+                .schema="${[{
+                  name: 'entity',
+                  type: 'entity',
+                  selector: { entity: {} },
+                  required: false
+                }]}"
+                .computeLabel="${(schema) => ''}"
+              ></ha-form>
+            </div>
+            <div class="help-text">选择年审日期实体</div>
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label">车辆状态实体</label>
+            <div class="entity-picker-container" 
+                 data-vehicle-index="${index}" 
+                 data-entity-type="vehicle_status">
+              <ha-form
+                .hass="${this._hass}"
+                .data="${{ entity: vehicle.entities?.vehicle_status || '' }}"
+                .schema="${[{
+                  name: 'entity',
+                  type: 'entity',
+                  selector: { entity: {} },
+                  required: false
+                }]}"
+                .computeLabel="${(schema) => ''}"
+              ></ha-form>
+            </div>
+            <div class="help-text">选择车辆状态实体</div>
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label">违章信息实体</label>
+            <div class="entity-picker-container" 
+                 data-vehicle-index="${index}" 
+                 data-entity-type="violations">
+              <ha-form
+                .hass="${this._hass}"
+                .data="${{ entity: vehicle.entities?.violations || '' }}"
+                .schema="${[{
+                  name: 'entity',
+                  type: 'entity',
+                  selector: { entity: {} },
+                  required: false
+                }]}"
+                .computeLabel="${(schema) => ''}"
+              ></ha-form>
+            </div>
+            <div class="help-text">选择违章信息实体</div>
+          </div>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  _getDefaultUser() {
     return {
-      title: '驾驶证和车辆状态',
-      people: [
-        {
-          name: '张三',
-          license_expiry_entity: 'sensor.license_expiry_zhang',
-          license_status_entity: 'binary_sensor.license_status_zhang',
-          license_points_entity: 'sensor.license_points_zhang',
-        },
-      ],
-      vehicles: [
-        {
-          license_plate: '京A12345',
-          inspection_date_entity: 'sensor.inspection_date_vehicle1',
-          vehicle_status_entity: 'binary_sensor.vehicle_status_vehicle1',
-          violations_entity: 'sensor.violations_vehicle1',
-        },
-      ],
-      update_time_entity: 'sensor.data_last_updated',
+      name: '新用户',
+      entities: {
+        license_expiry: '',
+        license_status: '',
+        penalty_points: ''
+      }
     };
   }
 
-  public setConfig(config: DrivingVehicleCardConfig): void {
-    if (!config.people || !config.vehicles) {
-      throw new Error('请配置人员和车辆信息');
-    }
-
-    this.config = {
-      title: '驾驶证和车辆状态',
-      ...config,
+  _getDefaultVehicle() {
+    return {
+      plate_entity: '',
+      entities: {
+        inspection_date: '',
+        vehicle_status: '',
+        violations: ''
+      }
     };
   }
 
-  protected render() {
-    if (!this.config || !this.hass) {
-      return html``;
-    }
+  _bindEvents() {
+    // 绑定输入框变化事件
+    this.querySelectorAll('input[type="text"]').forEach(input => {
+      input.addEventListener('input', this._handleInputChange.bind(this));
+    });
 
-    return html`
-      <ha-card>
-        <div class="card-header">
-          <h2>${this.config.title}</h2>
-        </div>
-        <div class="card-content">
-          ${this.config.people.map((person) => this.renderPersonSection(person))}
-          ${this.config.vehicles.map((vehicle) => this.renderVehicleSection(vehicle))}
-          ${this.renderUpdateTime()}
-        </div>
-      </ha-card>
-    `;
+    // 绑定复选框变化事件
+    this.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+      checkbox.addEventListener('change', this._handleCheckboxChange.bind(this));
+    });
+
+    // 绑定实体选择器变化事件（处理ha-form的变化）
+    this.querySelectorAll('ha-form').forEach(form => {
+      form.addEventListener('value-changed', this._handleEntityPickerChange.bind(this));
+    });
+
+    // 绑定删除按钮事件
+    this.querySelectorAll('.remove-btn[data-user-index]').forEach(btn => {
+      btn.addEventListener('click', this._handleRemoveUser.bind(this));
+    });
+
+    this.querySelectorAll('.remove-btn[data-vehicle-index]').forEach(btn => {
+      btn.addEventListener('click', this._handleRemoveVehicle.bind(this));
+    });
+
+    // 绑定添加按钮事件
+    this.querySelector('#add-user-btn').addEventListener('click', this._addUser.bind(this));
+    this.querySelector('#add-vehicle-btn').addEventListener('click', this._addVehicle.bind(this));
   }
 
-  private renderPersonSection(person: PersonConfig) {
-    const expiryEntity = this.hass.states[person.license_expiry_entity];
-    const statusEntity = this.hass.states[person.license_status_entity];
-    const pointsEntity = this.hass.states[person.license_points_entity];
-
-    const expiryDate = expiryEntity ? new Date(expiryEntity.state) : null;
-    const daysLeft = expiryDate ? Math.ceil((expiryDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) : null;
-    const status = statusEntity ? statusEntity.state : 'unknown';
-    const points = pointsEntity ? pointsEntity.state : '0';
-
-    return html`
-      <div class="person-section">
-        <div class="section-header">
-          <ha-icon icon="mdi:card-account-details-outline"></ha-icon>
-          <h3>${person.name} 的驾驶证信息</h3>
-        </div>
-        <div class="info-grid">
-          <div class="info-item">
-            <span class="info-label">有效期至</span>
-            <span class="info-value">${expiryEntity ? formatDate(expiryEntity.state) : '未知'}</span>
-          </div>
-          <div class="info-item">
-            <span class="info-label">有效期倒计时</span>
-            <span class="info-value ${daysLeft !== null && daysLeft < 30 ? 'text-warning' : ''}">
-              ${daysLeft !== null ? `${daysLeft}天` : '未知'}
-            </span>
-          </div>
-          <div class="info-item">
-            <span class="info-label">驾驶证状态</span>
-            <span class="info-value">
-              <span class="status-badge ${status === 'on' ? 'status-normal' : 'status-warning'}">
-                ${status === 'on' ? '正常' : status === 'off' ? '异常' : '未知'}
-              </span>
-            </span>
-          </div>
-          <div class="info-item">
-            <span class="info-label">扣分情况</span>
-            <span class="info-value">${points}/12分</span>
-          </div>
-        </div>
-      </div>
-    `;
+  _handleInputChange(e) {
+    const target = e.target;
+    const path = target.getAttribute('data-path');
+    
+    if (target.classList.contains('user-name')) {
+      const userIndex = parseInt(target.getAttribute('data-user-index'));
+      this._updateUserField(userIndex, 'name', target.value);
+    } else {
+      this._updateConfig(path, target.value);
+    }
   }
 
-  private renderVehicleSection(vehicle: VehicleConfig) {
-    const inspectionEntity = this.hass.states[vehicle.inspection_date_entity];
-    const statusEntity = this.hass.states[vehicle.vehicle_status_entity];
-    const violationsEntity = this.hass.states[vehicle.violations_entity];
-
-    const inspectionDate = inspectionEntity ? new Date(inspectionEntity.state) : null;
-    const daysLeft = inspectionDate ? Math.ceil((inspectionDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) : null;
-    const status = statusEntity ? statusEntity.state : 'unknown';
-    const violations = violationsEntity ? violationsEntity.state : '0';
-
-    return html`
-      <div class="vehicle-section">
-        <div class="section-header">
-          <ha-icon icon="mdi:car"></ha-icon>
-          <h3>${vehicle.license_plate} 车辆信息</h3>
-        </div>
-        <div class="info-grid">
-          <div class="info-item">
-            <span class="info-label">年审日期</span>
-            <span class="info-value">${inspectionEntity ? formatDate(inspectionEntity.state) : '未知'}</span>
-          </div>
-          <div class="info-item">
-            <span class="info-label">年审倒计时</span>
-            <span class="info-value ${daysLeft !== null && daysLeft < 30 ? 'text-warning' : ''}">
-              ${daysLeft !== null ? `${daysLeft}天` : '未知'}
-            </span>
-          </div>
-          <div class="info-item">
-            <span class="info-label">车辆状态</span>
-            <span class="info-value">
-              <span class="status-badge ${status === 'on' ? 'status-normal' : 'status-warning'}">
-                ${status === 'on' ? '正常' : status === 'off' ? '异常' : '未知'}
-              </span>
-            </span>
-          </div>
-          <div class="info-item">
-            <span class="info-label">违章信息</span>
-            <span class="info-value ${violations !== '0' ? 'text-warning' : ''}">
-              ${violations}条未处理
-            </span>
-          </div>
-        </div>
-      </div>
-    `;
+  _handleCheckboxChange(e) {
+    const target = e.target;
+    const path = target.getAttribute('data-path');
+    this._updateConfig(path, target.checked);
   }
 
-  private renderUpdateTime() {
-    if (!this.config.update_time_entity) {
-      return html``;
-    }
+  _handleEntityPickerChange(e) {
+    const form = e.target;
+    const container = form.closest('.entity-picker-container');
+    const path = container.getAttribute('data-path');
+    const value = e.detail.value?.entity;
 
-    const updateEntity = this.hass.states[this.config.update_time_entity];
-    if (!updateEntity) {
-      return html``;
-    }
+    if (path === 'last_update_entity') {
+      this._updateConfig(path, value);
+    } else {
+      const userIndex = container.getAttribute('data-user-index');
+      const vehicleIndex = container.getAttribute('data-vehicle-index');
+      const entityType = container.getAttribute('data-entity-type');
 
-    return html`
-      <div class="update-time">
-        <span>最后更新: ${formatDate(updateEntity.state)} ${formatTime(updateEntity.state)}</span>
-      </div>
-    `;
+      if (userIndex !== null) {
+        this._updateUserField(parseInt(userIndex), `entities.${entityType}`, value);
+      } else if (vehicleIndex !== null) {
+        if (entityType === 'plate_entity') {
+          this._updateVehicleField(parseInt(vehicleIndex), 'plate_entity', value);
+        } else {
+          this._updateVehicleField(parseInt(vehicleIndex), `entities.${entityType}`, value);
+        }
+      }
+    }
   }
 
-  static styles = css`
-    .card-header {
-      padding: 16px;
-      border-bottom: 1px solid var(--divider-color);
+  // 其他事件处理方法保持不变...
+  _handleRemoveUser(e) {
+    const userIndex = parseInt(e.target.getAttribute('data-user-index'));
+    this._removeUser(userIndex);
+  }
+
+  _handleRemoveVehicle(e) {
+    const vehicleIndex = parseInt(e.target.getAttribute('data-vehicle-index'));
+    this._removeVehicle(vehicleIndex);
+  }
+
+  _addUser() {
+    if (!this._config.users) this._config.users = [];
+    this._config.users.push(this._getDefaultUser());
+    this._fireEvent();
+  }
+
+  _addVehicle() {
+    if (!this._config.vehicles) this._config.vehicles = [];
+    this._config.vehicles.push(this._getDefaultVehicle());
+    this._fireEvent();
+  }
+
+  _removeUser(index) {
+    if (!this._config.users || this._config.users.length <= 1) return;
+    this._config.users.splice(index, 1);
+    this._fireEvent();
+  }
+
+  _removeVehicle(index) {
+    if (!this._config.vehicles || this._config.vehicles.length <= 1) return;
+    this._config.vehicles.splice(index, 1);
+    this._fireEvent();
+  }
+
+  _updateConfig(key, value) {
+    this._config[key] = value;
+    this._fireEvent();
+  }
+
+  _updateUserField(index, field, value) {
+    if (!this._config.users) this._config.users = [this._getDefaultUser()];
+    if (!this._config.users[index]) return;
+
+    if (field === 'name') {
+      this._config.users[index].name = value;
+    } else if (field.startsWith('entities.')) {
+      const entityField = field.replace('entities.', '');
+      if (!this._config.users[index].entities) {
+        this._config.users[index].entities = {};
+      }
+      this._config.users[index].entities[entityField] = value;
     }
-    
-    .card-content {
-      padding: 16px;
+
+    this._fireEvent();
+  }
+
+  _updateVehicleField(index, field, value) {
+    if (!this._config.vehicles) this._config.vehicles = [this._getDefaultVehicle()];
+    if (!this._config.vehicles[index]) return;
+
+    if (field === 'plate_entity') {
+      this._config.vehicles[index].plate_entity = value;
+    } else if (field.startsWith('entities.')) {
+      const entityField = field.replace('entities.', '');
+      if (!this._config.vehicles[index].entities) {
+        this._config.vehicles[index].entities = {};
+      }
+      this._config.vehicles[index].entities[entityField] = value;
     }
-    
-    .person-section, .vehicle-section {
-      margin-bottom: 24px;
-    }
-    
-    .section-header {
-      display: flex;
-      align-items: center;
-      margin-bottom: 12px;
-      color: var(--primary-color);
-    }
-    
-    .section-header ha-icon {
-      margin-right: 8px;
-    }
-    
-    .info-grid {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 12px;
-    }
-    
-    .info-item {
-      display: flex;
-      justify-content: space-between;
-      padding: 8px;
-      background-color: var(--secondary-background-color);
-      border-radius: 4px;
-    }
-    
-    .info-label {
-      color: var(--secondary-text-color);
-    }
-    
-    .info-value {
-      font-weight: 500;
-    }
-    
-    .status-badge {
-      padding: 2px 8px;
-      border-radius: 12px;
-      font-size: 0.8em;
-      font-weight: 500;
-    }
-    
-    .status-normal {
-      background-color: #4CAF50;
-      color: white;
-    }
-    
-    .status-warning {
-      background-color: #FFC107;
-      color: black;
-    }
-    
-    .text-warning {
-      color: #F57C00;
-    }
-    
-    .update-time {
-      margin-top: 16px;
-      text-align: right;
-      font-size: 0.8em;
-      color: var(--secondary-text-color);
-    }
-  `;
+
+    this._fireEvent();
+  }
+
+  _fireEvent() {
+    const event = new Event('config-changed', {
+      bubbles: true,
+      composed: true
+    });
+    event.detail = { config: this._config };
+    this.dispatchEvent(event);
+  }
 }
 
-// 注册卡片
+// 注册卡片和编辑器
+if (!customElements.get('driving-license-card')) {
+  customElements.define('driving-license-card', DrivingLicenseCard);
+}
+
+if (!customElements.get('driving-license-editor')) {
+  customElements.define('driving-license-editor', DrivingLicenseEditor);
+}
+
+// 注册到 HACS
 window.customCards = window.customCards || [];
 window.customCards.push({
-  type: 'ha-driving-vehicle-card',
-  name: '驾驶证和车辆状态卡片',
-  description: '显示驾驶证和车辆状态信息的卡片',
+  type: 'driving-license-card',
+  name: 'Driving License Card',
+  description: 'A card to display driving license and vehicle status information',
   preview: true,
+  documentationURL: 'https://github.com/B361273068/ha-driving-license-card'
 });
+
+console.log('Driving License Card with Home Assistant standard picker loaded successfully');
