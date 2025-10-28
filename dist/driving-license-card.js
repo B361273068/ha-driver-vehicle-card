@@ -15,6 +15,7 @@ class DrivingLicenseCard extends HTMLElement {
     return {
       title: "驾驶证和车辆状态",
       show_last_updated: true,
+      last_update_entity: "",
       users: [
         {
           name: "示例用户",
@@ -42,6 +43,7 @@ class DrivingLicenseCard extends HTMLElement {
     this._config = {
       title: '驾驶证和车辆状态',
       show_last_updated: true,
+      last_update_entity: '',
       users: [],
       vehicles: [],
       ...config
@@ -133,7 +135,7 @@ class DrivingLicenseCard extends HTMLElement {
   render() {
     if (!this._hass || !this._config) return;
 
-    // 获取最后更新时间（从实体获取）
+    // 获取最后更新时间（从配置的实体获取）
     let lastUpdated = new Date().toLocaleString('zh-CN', {
       year: 'numeric',
       month: '2-digit',
@@ -143,17 +145,24 @@ class DrivingLicenseCard extends HTMLElement {
       second: '2-digit'
     });
 
-    // 尝试从实体获取最后更新时间
-    const lastUpdateEntity = this.getEntityState('sensor.last_update');
-    if (lastUpdateEntity && lastUpdateEntity.last_updated) {
-      lastUpdated = new Date(lastUpdateEntity.last_updated).toLocaleString('zh-CN', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit'
-      });
+    // 尝试从配置的实体获取最后更新时间
+    const lastUpdateEntityId = this._config.last_update_entity;
+    if (lastUpdateEntityId) {
+      const lastUpdateEntity = this.getEntityState(lastUpdateEntityId);
+      if (lastUpdateEntity) {
+        // 优先使用实体的最后更新时间
+        const updateTime = lastUpdateEntity.last_updated || lastUpdateEntity.state;
+        if (updateTime) {
+          lastUpdated = new Date(updateTime).toLocaleString('zh-CN', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit'
+          });
+        }
+      }
     }
 
     const renderUserCards = () => {
@@ -724,6 +733,17 @@ class DrivingLicenseEditor extends HTMLElement {
             </div>
             <div class="help-text">显示数据的最后更新时间</div>
           </div>
+          <div class="form-group">
+            <label class="form-label">最后更新时间实体</label>
+            ${this._renderEntitySelector(
+              '选择最后更新时间实体',
+              config.last_update_entity || '',
+              -1,
+              'last_update_entity',
+              'config'
+            )}
+            <div class="help-text">选择用于显示最后更新时间的实体（可选）</div>
+          </div>
         </div>
 
         <!-- 用户配置 -->
@@ -761,6 +781,7 @@ class DrivingLicenseEditor extends HTMLElement {
               <li><strong>年审日期</strong>：日期格式传感器 (YYYY-MM-DD)</li>
               <li><strong>车辆状态</strong>：文本状态传感器 (正常/异常)</li>
               <li><strong>违章信息</strong>：数字类型传感器</li>
+              <li><strong>最后更新时间</strong>：任何包含时间信息的实体</li>
             </ul>
             <p><strong>提示</strong>：使用模板传感器创建所需实体</p>
           </div>
@@ -915,15 +936,24 @@ class DrivingLicenseEditor extends HTMLElement {
   }
 
   _bindEvents() {
+    // 阻止事件冒泡的函数
+    const stopPropagation = (e) => {
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+    };
+
     // 标题更新 - 防止语音助手弹出
     const titleInput = this.querySelector('input[type="text"]');
     if (titleInput) {
       titleInput.addEventListener('input', (e) => {
         this._updateConfig('title', e.target.value);
       });
-      titleInput.addEventListener('keydown', (e) => {
-        e.stopPropagation();
-      });
+      // 阻止所有键盘事件冒泡
+      titleInput.addEventListener('keydown', stopPropagation);
+      titleInput.addEventListener('keyup', stopPropagation);
+      titleInput.addEventListener('keypress', stopPropagation);
+      titleInput.addEventListener('focus', stopPropagation);
+      titleInput.addEventListener('blur', stopPropagation);
     }
 
     // 用户姓名输入 - 防止语音助手弹出
@@ -932,9 +962,12 @@ class DrivingLicenseEditor extends HTMLElement {
         const index = this._getParentIndex(e.target);
         this._updateUserField(index, 'name', e.target.value);
       });
-      input.addEventListener('keydown', (e) => {
-        e.stopPropagation();
-      });
+      // 阻止所有键盘事件冒泡
+      input.addEventListener('keydown', stopPropagation);
+      input.addEventListener('keyup', stopPropagation);
+      input.addEventListener('keypress', stopPropagation);
+      input.addEventListener('focus', stopPropagation);
+      input.addEventListener('blur', stopPropagation);
     });
 
     // 复选框更新
@@ -956,6 +989,8 @@ class DrivingLicenseEditor extends HTMLElement {
           this._updateUserField(index, `entities.${field}`, e.target.value);
         } else if (type === 'vehicle_plate') {
           this._updateVehicleField(index, 'plate_entity', e.target.value);
+        } else if (type === 'config') {
+          this._updateConfig(field, e.target.value);
         } else {
           this._updateVehicleField(index, `entities.${field}`, e.target.value);
         }
