@@ -14,6 +14,7 @@ class DrivingLicenseCard extends HTMLElement {
   static getStubConfig() {
     return {
       title: "驾驶证和车辆状态",
+      show_last_updated: true,
       users: [
         {
           name: "示例用户",
@@ -40,6 +41,7 @@ class DrivingLicenseCard extends HTMLElement {
   setConfig(config) {
     this._config = {
       title: '驾驶证和车辆状态',
+      show_last_updated: true,
       users: [],
       vehicles: [],
       ...config
@@ -76,20 +78,19 @@ class DrivingLicenseCard extends HTMLElement {
   }
 
   getCardSize() {
-    let size = 1;
-    size += this._config.users.length * 4;
-    size += this._config.vehicles.length * 4;
+    let size = 2;
+    size += this._config.users.length * 2;
+    size += this._config.vehicles.length * 3;
     return size;
   }
 
   calculateDaysDifference(dateString) {
-    if (!dateString) return '未知';
+    if (!dateString) return null;
     const today = new Date();
     const targetDate = new Date(dateString);
-    if (isNaN(targetDate.getTime())) return '无效日期';
+    if (isNaN(targetDate.getTime())) return null;
     const diffTime = targetDate - today;
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays > 0 ? diffDays : 0;
+    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   }
 
   getEntityState(entityId) {
@@ -97,40 +98,42 @@ class DrivingLicenseCard extends HTMLElement {
     return this._hass.states[entityId];
   }
 
-  getStatusColor(status) {
-    if (!status) return 'text-gray-600';
+  getStatusInfo(status) {
+    if (!status) return { text: '未知', color: 'gray', icon: 'help-circle' };
+    
     status = status.toLowerCase();
-    if (status.includes('正常')) return 'text-green-600';
-    if (status.includes('警告') || status.includes('即将到期')) return 'text-orange-500';
-    if (status.includes('过期') || status.includes('异常')) return 'text-red-600';
-    return 'text-gray-600';
+    if (status.includes('正常')) return { text: '正常', color: 'green', icon: 'check-circle' };
+    if (status.includes('警告') || status.includes('即将到期')) return { text: '警告', color: 'orange', icon: 'alert-circle' };
+    if (status.includes('过期') || status.includes('异常')) return { text: '异常', color: 'red', icon: 'close-circle' };
+    return { text: status, color: 'blue', icon: 'information' };
   }
 
-  getCountdownColor(days) {
-    if (days === '未知' || days === '无效日期') return 'text-gray-600';
-    if (days < 0) return 'text-red-600';
-    if (days < 30) return 'text-orange-500';
-    return 'text-green-600';
+  getCountdownInfo(days) {
+    if (days === null || days === undefined) return { text: '未知', color: 'gray' };
+    if (days < 0) return { text: '已过期', color: 'red' };
+    if (days < 30) return { text: `${days}天`, color: 'orange' };
+    if (days < 90) return { text: `${days}天`, color: 'blue' };
+    return { text: `${days}天`, color: 'green' };
   }
 
-  getPointsColor(points, maxPoints = 12) {
-    if (points === '未知') return 'text-gray-600';
+  getPointsInfo(points, maxPoints = 12) {
+    if (!points || points === '未知') return { text: '0分', color: 'green', value: 0 };
+    
     const pointsValue = parseInt(points);
-    if (isNaN(pointsValue)) return 'text-gray-600';
+    if (isNaN(pointsValue)) return { text: '0分', color: 'green', value: 0 };
+    
     const percentage = pointsValue / maxPoints;
-    if (percentage >= 0.75) return 'text-red-600';
-    if (percentage >= 0.5) return 'text-orange-500';
-    return 'text-green-600';
+    let color = 'green';
+    if (percentage >= 0.75) color = 'red';
+    else if (percentage >= 0.5) color = 'orange';
+    
+    return { text: `${pointsValue}分`, color, value: pointsValue };
   }
 
   render() {
     if (!this._hass || !this._config) return;
 
-    const tailwindUrl = 'https://cdn.tailwindcss.com';
-    const fontAwesomeUrl = 'https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css';
-
-    // 获取最后更新时间（从实体或当前时间）
-    let lastUpdated = new Date().toLocaleString('zh-CN', {
+    const lastUpdated = new Date().toLocaleString('zh-CN', {
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
@@ -139,43 +142,59 @@ class DrivingLicenseCard extends HTMLElement {
       second: '2-digit'
     });
 
-    const renderUserSections = () => {
+    const renderUserCards = () => {
       return this._config.users.map((user, index) => {
         const expiryEntity = this.getEntityState(user.entities?.license_expiry);
         const statusEntity = this.getEntityState(user.entities?.license_status);
         const pointsEntity = this.getEntityState(user.entities?.penalty_points);
         
-        const expiryDate = expiryEntity?.state || '未配置';
+        const expiryDate = expiryEntity?.state || null;
         const expiryDays = this.calculateDaysDifference(expiryDate);
-        const status = statusEntity?.state || '未配置';
-        const points = pointsEntity?.state || '0';
-        const maxPoints = pointsEntity?.attributes?.max_points || 12;
+        const statusInfo = this.getStatusInfo(statusEntity?.state);
+        const pointsInfo = this.getPointsInfo(pointsEntity?.state);
+        const countdownInfo = this.getCountdownInfo(expiryDays);
         
         return `
-          <div class="user-section mt-4 border-l-4 border-blue-600 pl-3">
-            <div class="section-header flex items-center text-lg font-semibold text-blue-600">
-              <i class="fa fa-id-card mr-2"></i>
-              <span>驾驶证信息 - ${user.name}</span>
+          <div class="license-card">
+            <div class="card-header">
+              <div class="header-icon">📄</div>
+              <div class="header-title">
+                <div class="title-main">驾驶证信息</div>
+                <div class="title-sub">${user.name}</div>
+              </div>
+              <div class="status-badge status-${statusInfo.color}">
+                <ha-icon icon="mdi:${statusInfo.icon}"></ha-icon>
+                ${statusInfo.text}
+              </div>
             </div>
-            <div class="info-grid grid grid-cols-2 gap-2 mt-2">
-              <div class="info-item">
-                <span class="info-label text-sm text-gray-500">有效期至</span>
-                <div class="info-value text-right">${expiryDate}</div>
-              </div>
-              <div class="info-item">
-                <span class="info-label text-sm text-gray-500">有效期倒计时</span>
-                <div class="info-value text-right ${this.getCountdownColor(expiryDays)}">
-                  ${typeof expiryDays === 'number' ? `${expiryDays}天` : expiryDays}
+            
+            <div class="card-content">
+              <div class="info-grid">
+                <div class="info-item">
+                  <div class="info-label">有效期至</div>
+                  <div class="info-value">${expiryDate || '未配置'}</div>
                 </div>
-              </div>
-              <div class="info-item">
-                <span class="info-label text-sm text-gray-500">驾驶证状态</span>
-                <div class="info-value text-right ${this.getStatusColor(status)}">${status}</div>
-              </div>
-              <div class="info-item">
-                <span class="info-label text-sm text-gray-500">扣分情况</span>
-                <div class="info-value text-right ${this.getPointsColor(points, maxPoints)}">
-                  ${points}/${maxPoints}分
+                <div class="info-item">
+                  <div class="info-label">有效期倒计时</div>
+                  <div class="info-value countdown-${countdownInfo.color}">
+                    ${countdownInfo.text}
+                  </div>
+                </div>
+                <div class="info-item">
+                  <div class="info-label">扣分情况</div>
+                  <div class="info-value points-${pointsInfo.color}">
+                    ${pointsInfo.text}
+                  </div>
+                </div>
+                <div class="info-item">
+                  <div class="info-label">累计扣分</div>
+                  <div class="points-progress">
+                    <div class="progress-bar">
+                      <div class="progress-fill points-${pointsInfo.color}" 
+                           style="width: ${(pointsInfo.value / 12) * 100}%"></div>
+                    </div>
+                    <div class="progress-text">${pointsInfo.value}/12</div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -184,43 +203,59 @@ class DrivingLicenseCard extends HTMLElement {
       }).join('');
     };
 
-    const renderVehicleSections = () => {
+    const renderVehicleCards = () => {
       return this._config.vehicles.map((vehicle, index) => {
         const inspectionEntity = this.getEntityState(vehicle.entities?.inspection_date);
         const statusEntity = this.getEntityState(vehicle.entities?.vehicle_status);
         const violationsEntity = this.getEntityState(vehicle.entities?.violations);
         
-        const inspectionDate = inspectionEntity?.state || '未配置';
+        const inspectionDate = inspectionEntity?.state || null;
         const inspectionDays = this.calculateDaysDifference(inspectionDate);
-        const status = statusEntity?.state || '未配置';
+        const statusInfo = this.getStatusInfo(statusEntity?.state);
         const violations = violationsEntity?.state || '0';
-        const violationsDesc = violationsEntity?.attributes?.description || `${violations}条未处理`;
+        const violationsCount = parseInt(violations) || 0;
+        const countdownInfo = this.getCountdownInfo(inspectionDays);
         
         return `
-          <div class="vehicle-section mt-4 border-l-4 border-green-600 pl-3">
-            <div class="section-header flex items-center text-lg font-semibold text-green-600">
-              <i class="fa fa-car mr-2"></i>
-              <span>车辆信息 - ${vehicle.plate}</span>
+          <div class="vehicle-card">
+            <div class="card-header">
+              <div class="header-icon">🚗</div>
+              <div class="header-title">
+                <div class="title-main">车辆信息</div>
+                <div class="title-sub">${vehicle.plate}</div>
+              </div>
+              <div class="status-badge status-${statusInfo.color}">
+                <ha-icon icon="mdi:${statusInfo.icon}"></ha-icon>
+                ${statusInfo.text}
+              </div>
             </div>
-            <div class="info-grid grid grid-cols-2 gap-2 mt-2">
-              <div class="info-item">
-                <span class="info-label text-sm text-gray-500">年审日期</span>
-                <div class="info-value text-right">${inspectionDate}</div>
-              </div>
-              <div class="info-item">
-                <span class="info-label text-sm text-gray-500">年审倒计时</span>
-                <div class="info-value text-right ${this.getCountdownColor(inspectionDays)}">
-                  ${typeof inspectionDays === 'number' ? `${inspectionDays}天` : inspectionDays}
+            
+            <div class="card-content">
+              <div class="info-grid">
+                <div class="info-item">
+                  <div class="info-label">年审日期</div>
+                  <div class="info-value">${inspectionDate || '未配置'}</div>
                 </div>
-              </div>
-              <div class="info-item">
-                <span class="info-label text-sm text-gray-500">车辆状态</span>
-                <div class="info-value text-right ${this.getStatusColor(status)}">${status}</div>
-              </div>
-              <div class="info-item">
-                <span class="info-label text-sm text-gray-500">违章信息</span>
-                <div class="info-value text-right ${violations > 0 ? 'text-orange-500' : 'text-green-600'}">
-                  ${violationsDesc}
+                <div class="info-item">
+                  <div class="info-label">年审倒计时</div>
+                  <div class="info-value countdown-${countdownInfo.color}">
+                    ${countdownInfo.text}
+                  </div>
+                </div>
+                <div class="info-item">
+                  <div class="info-label">违章信息</div>
+                  <div class="info-value violations-${violationsCount > 0 ? 'red' : 'green'}">
+                    ${violationsCount}条未处理
+                  </div>
+                </div>
+                <div class="info-item">
+                  <div class="info-label">车辆状态</div>
+                  <div class="status-indicators">
+                    <div class="status-indicator status-${statusInfo.color}">
+                      <ha-icon icon="mdi:${statusInfo.icon}"></ha-icon>
+                      ${statusInfo.text}
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -231,66 +266,211 @@ class DrivingLicenseCard extends HTMLElement {
 
     this.shadowRoot.innerHTML = `
       <style>
-        @import url('${tailwindUrl}');
-        @import url('${fontAwesomeUrl}');
+        :host {
+          display: block;
+        }
+        
+        .card-container {
+          padding: 16px;
+          font-family: var(--paper-font-body1_-_font-family);
+        }
+        
+        .card-title {
+          font-size: 20px;
+          font-weight: 500;
+          margin-bottom: 16px;
+          color: var(--primary-text-color);
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        }
+        
+        .cards-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+          gap: 16px;
+          margin-bottom: 16px;
+        }
+        
+        .license-card, .vehicle-card {
+          background: var(--card-background-color);
+          border-radius: 12px;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+          border: 1px solid var(--divider-color);
+          overflow: hidden;
+        }
+        
+        .card-header {
+          display: flex;
+          align-items: center;
+          padding: 16px;
+          background: var(--primary-color);
+          color: white;
+          gap: 12px;
+        }
+        
+        .header-icon {
+          font-size: 24px;
+        }
+        
+        .header-title {
+          flex: 1;
+        }
+        
+        .title-main {
+          font-size: 16px;
+          font-weight: 500;
+        }
+        
+        .title-sub {
+          font-size: 14px;
+          opacity: 0.9;
+        }
+        
+        .status-badge {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          padding: 4px 8px;
+          border-radius: 12px;
+          font-size: 12px;
+          font-weight: 500;
+          background: rgba(255,255,255,0.2);
+        }
         
         .card-content {
           padding: 16px;
         }
         
-        .section-header {
-          margin-bottom: 8px;
-        }
-        
         .info-grid {
           display: grid;
           grid-template-columns: 1fr 1fr;
-          gap: 8px;
+          gap: 12px;
         }
         
         .info-item {
           display: flex;
           flex-direction: column;
+          gap: 4px;
         }
         
         .info-label {
-          font-size: 0.875rem;
-          color: #6b7280;
-          margin-bottom: 2px;
-        }
-        
-        .info-value {
-          font-size: 0.875rem;
+          font-size: 12px;
+          color: var(--secondary-text-color);
           font-weight: 500;
         }
         
-        .update-time {
-          font-size: 0.75rem;
-          color: #6b7280;
+        .info-value {
+          font-size: 14px;
+          font-weight: 500;
+          color: var(--primary-text-color);
+        }
+        
+        .points-progress {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+        
+        .progress-bar {
+          flex: 1;
+          height: 6px;
+          background: var(--divider-color);
+          border-radius: 3px;
+          overflow: hidden;
+        }
+        
+        .progress-fill {
+          height: 100%;
+          border-radius: 3px;
+          transition: width 0.3s ease;
+        }
+        
+        .progress-text {
+          font-size: 12px;
+          color: var(--secondary-text-color);
+          min-width: 40px;
+        }
+        
+        .status-indicators {
+          display: flex;
+          gap: 8px;
+        }
+        
+        .status-indicator {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          padding: 4px 8px;
+          border-radius: 8px;
+          font-size: 12px;
+          font-weight: 500;
+        }
+        
+        /* 颜色主题 */
+        .status-green, .countdown-green, .points-green {
+          color: var(--success-color, #4CAF50);
+        }
+        .status-orange, .countdown-orange, .points-orange {
+          color: var(--warning-color, #FF9800);
+        }
+        .status-red, .countdown-red, .points-red, .violations-red {
+          color: var(--error-color, #F44336);
+        }
+        .status-blue, .countdown-blue {
+          color: var(--info-color, #2196F3);
+        }
+        .status-gray, .countdown-gray {
+          color: var(--disabled-text-color, #9E9E9E);
+        }
+        
+        .progress-fill.points-green { background: var(--success-color, #4CAF50); }
+        .progress-fill.points-orange { background: var(--warning-color, #FF9800); }
+        .progress-fill.points-red { background: var(--error-color, #F44336); }
+        
+        .last-updated {
           text-align: right;
+          font-size: 12px;
+          color: var(--secondary-text-color);
           margin-top: 8px;
           padding-top: 8px;
-          border-top: 1px solid #e5e7eb;
+          border-top: 1px solid var(--divider-color);
+        }
+        
+        @media (max-width: 600px) {
+          .cards-grid {
+            grid-template-columns: 1fr;
+          }
+          
+          .info-grid {
+            grid-template-columns: 1fr;
+          }
         }
       </style>
       
       <ha-card>
-        <div class="card-header">
-          <div class="card-title">${this._config.title}</div>
-        </div>
-        <div class="card-content">
-          ${renderUserSections()}
-          ${renderVehicleSections()}
-          <div class="update-time">
-            最后更新: ${lastUpdated}
+        <div class="card-container">
+          <div class="card-title">
+            <span>${this._config.title}</span>
           </div>
+          
+          <div class="cards-grid">
+            ${renderUserCards()}
+            ${renderVehicleCards()}
+          </div>
+          
+          ${this._config.show_last_updated ? `
+            <div class="last-updated">
+              最后更新: ${lastUpdated}
+            </div>
+          ` : ''}
         </div>
       </ha-card>
     `;
   }
 }
 
-// 编辑器类
+// 编辑器类 - 保持之前的编辑器代码不变
 class DrivingLicenseEditor extends HTMLElement {
   constructor() {
     super();
@@ -399,6 +579,11 @@ class DrivingLicenseEditor extends HTMLElement {
           color: var(--secondary-text-color, #757575);
           margin-top: 4px;
         }
+        .checkbox-group {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
       </style>
 
       <div class="editor-container">
@@ -412,6 +597,16 @@ class DrivingLicenseEditor extends HTMLElement {
               class="form-control"
               value="${config.title || '驾驶证和车辆状态'}"
             >
+          </div>
+          <div class="form-group">
+            <div class="checkbox-group">
+              <input
+                type="checkbox"
+                id="show-last-updated"
+                ${config.show_last_updated !== false ? 'checked' : ''}
+              >
+              <label class="form-label" for="show-last-updated">显示最后更新时间</label>
+            </div>
           </div>
         </div>
 
@@ -471,26 +666,26 @@ class DrivingLicenseEditor extends HTMLElement {
         </div>
         
         <div class="grid-2">
-          <div class="form-group">
-            <label class="form-label">驾驶证有效期实体</label>
-            <select class="form-control license-expiry">
-              ${this._renderEntityOptions(user.entities?.license_expiry)}
-            </select>
-          </div>
+          ${this._renderEntitySelector(
+            '驾驶证有效期实体',
+            user.entities?.license_expiry,
+            value => this._updateUserField(index, 'entities.license_expiry', value),
+            'date'
+          )}
           
-          <div class="form-group">
-            <label class="form-label">驾驶证状态实体</label>
-            <select class="form-control license-status">
-              ${this._renderEntityOptions(user.entities?.license_status)}
-            </select>
-          </div>
+          ${this._renderEntitySelector(
+            '驾驶证状态实体',
+            user.entities?.license_status,
+            value => this._updateUserField(index, 'entities.license_status', value),
+            'status'
+          )}
           
-          <div class="form-group">
-            <label class="form-label">扣分情况实体</label>
-            <select class="form-control penalty-points">
-              ${this._renderEntityOptions(user.entities?.penalty_points)}
-            </select>
-          </div>
+          ${this._renderEntitySelector(
+            '扣分情况实体',
+            user.entities?.penalty_points,
+            value => this._updateUserField(index, 'entities.penalty_points', value),
+            'point'
+          )}
         </div>
       </div>
     `).join('');
@@ -513,26 +708,26 @@ class DrivingLicenseEditor extends HTMLElement {
         </div>
         
         <div class="grid-2">
-          <div class="form-group">
-            <label class="form-label">年审日期实体</label>
-            <select class="form-control inspection-date">
-              ${this._renderEntityOptions(vehicle.entities?.inspection_date)}
-            </select>
-          </div>
+          ${this._renderEntitySelector(
+            '年审日期实体',
+            vehicle.entities?.inspection_date,
+            value => this._updateVehicleField(index, 'entities.inspection_date', value),
+            'date'
+          )}
           
-          <div class="form-group">
-            <label class="form-label">车辆状态实体</label>
-            <select class="form-control vehicle-status">
-              ${this._renderEntityOptions(vehicle.entities?.vehicle_status)}
-            </select>
-          </div>
+          ${this._renderEntitySelector(
+            '车辆状态实体',
+            vehicle.entities?.vehicle_status,
+            value => this._updateVehicleField(index, 'entities.vehicle_status', value),
+            'status'
+          )}
           
-          <div class="form-group">
-            <label class="form-label">违章信息实体</label>
-            <select class="form-control violations">
-              ${this._renderEntityOptions(vehicle.entities?.violations)}
-            </select>
-          </div>
+          ${this._renderEntitySelector(
+            '违章信息实体',
+            vehicle.entities?.violations,
+            value => this._updateVehicleField(index, 'entities.violations', value),
+            'violation'
+          )}
         </div>
       </div>
     `).join('');
@@ -581,6 +776,14 @@ class DrivingLicenseEditor extends HTMLElement {
     if (titleInput) {
       titleInput.addEventListener('input', (e) => {
         this._updateConfig('title', e.target.value);
+      });
+    }
+
+    // 复选框更新
+    const checkbox = this.querySelector('#show-last-updated');
+    if (checkbox) {
+      checkbox.addEventListener('change', (e) => {
+        this._updateConfig('show_last_updated', e.target.checked);
       });
     }
 
@@ -763,4 +966,4 @@ window.customCards.push({
   documentationURL: 'https://github.com/B361273068/ha-driving-license-card'
 });
 
-console.log('Driving License Card with visual editor loaded successfully');
+console.log('Modern Driving License Card loaded successfully');
