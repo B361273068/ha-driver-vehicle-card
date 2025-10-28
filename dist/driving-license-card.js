@@ -516,7 +516,7 @@ class DrivingLicenseCard extends HTMLElement {
   }
 }
 
-// 编辑器类 - 使用Home Assistant标准实体选择器样式
+// 编辑器类 - 使用改进的实体选择器
 class DrivingLicenseEditor extends HTMLElement {
   constructor() {
     super();
@@ -531,7 +531,8 @@ class DrivingLicenseEditor extends HTMLElement {
 
   set hass(hass) {
     this._hass = hass;
-    this._render();
+    // 延迟渲染以确保 hass 已完全设置
+    setTimeout(() => this._render(), 0);
   }
 
   _render() {
@@ -671,13 +672,21 @@ class DrivingLicenseEditor extends HTMLElement {
           height: 16px;
         }
         
-        /* Home Assistant 标准实体选择器样式 */
-        .entity-picker {
+        /* 实体选择器样式 */
+        .entity-select {
           width: 100%;
+          padding: 8px 12px;
+          border: 1px solid var(--divider-color, #e0e0e0);
+          border-radius: 4px;
+          background: var(--card-background-color, white);
+          color: var(--primary-text-color, #212121);
+          font-size: 14px;
+          box-sizing: border-box;
         }
         
-        .entity-picker ha-entity-picker {
-          width: 100%;
+        .entity-select:focus {
+          outline: none;
+          border-color: var(--primary-color, #03a9f4);
         }
         
         /* 防止语音助手弹出的特殊样式 */
@@ -686,11 +695,6 @@ class DrivingLicenseEditor extends HTMLElement {
           -moz-user-select: text !important;
           -ms-user-select: text !important;
           user-select: text !important;
-        }
-        
-        .no-voice-assistant:focus {
-          outline: 2px solid var(--primary-color) !important;
-          outline-offset: 2px !important;
         }
         
         @media (max-width: 768px) {
@@ -737,9 +741,7 @@ class DrivingLicenseEditor extends HTMLElement {
           </div>
           <div class="form-group">
             <label class="form-label">最后更新时间实体</label>
-            <div class="entity-picker">
-              ${this._renderEntityPicker(config.last_update_entity || '', 'last_update_entity', 'config')}
-            </div>
+            ${this._renderEntitySelector(config.last_update_entity || '', 'last_update_entity', 'config')}
             <div class="help-text">选择用于显示最后更新时间的实体（可选）</div>
           </div>
         </div>
@@ -813,25 +815,19 @@ class DrivingLicenseEditor extends HTMLElement {
         <div class="grid-2">
           <div class="form-group">
             <label class="form-label">驾驶证有效期实体</label>
-            <div class="entity-picker">
-              ${this._renderEntityPicker(user.entities?.license_expiry || '', 'license_expiry', 'user', index)}
-            </div>
+            ${this._renderEntitySelector(user.entities?.license_expiry || '', 'license_expiry', 'user', index)}
             <div class="help-text">选择驾驶证有效期实体</div>
           </div>
           
           <div class="form-group">
             <label class="form-label">驾驶证状态实体</label>
-            <div class="entity-picker">
-              ${this._renderEntityPicker(user.entities?.license_status || '', 'license_status', 'user', index)}
-            </div>
+            ${this._renderEntitySelector(user.entities?.license_status || '', 'license_status', 'user', index)}
             <div class="help-text">选择驾驶证状态实体</div>
           </div>
           
           <div class="form-group">
             <label class="form-label">扣分情况实体</label>
-            <div class="entity-picker">
-              ${this._renderEntityPicker(user.entities?.penalty_points || '', 'penalty_points', 'user', index)}
-            </div>
+            ${this._renderEntitySelector(user.entities?.penalty_points || '', 'penalty_points', 'user', index)}
             <div class="help-text">选择扣分情况实体</div>
           </div>
         </div>
@@ -849,34 +845,26 @@ class DrivingLicenseEditor extends HTMLElement {
         
         <div class="form-group">
           <label class="form-label">车牌号码实体</label>
-          <div class="entity-picker">
-            ${this._renderEntityPicker(vehicle.plate_entity || '', 'plate_entity', 'vehicle_plate', index)}
-          </div>
+          ${this._renderEntitySelector(vehicle.plate_entity || '', 'plate_entity', 'vehicle_plate', index)}
           <div class="help-text">选择包含车牌号码的传感器实体</div>
         </div>
         
         <div class="grid-2">
           <div class="form-group">
             <label class="form-label">年审日期实体</label>
-            <div class="entity-picker">
-              ${this._renderEntityPicker(vehicle.entities?.inspection_date || '', 'inspection_date', 'vehicle', index)}
-            </div>
+            ${this._renderEntitySelector(vehicle.entities?.inspection_date || '', 'inspection_date', 'vehicle', index)}
             <div class="help-text">选择年审日期实体</div>
           </div>
           
           <div class="form-group">
             <label class="form-label">车辆状态实体</label>
-            <div class="entity-picker">
-              ${this._renderEntityPicker(vehicle.entities?.vehicle_status || '', 'vehicle_status', 'vehicle', index)}
-            </div>
+            ${this._renderEntitySelector(vehicle.entities?.vehicle_status || '', 'vehicle_status', 'vehicle', index)}
             <div class="help-text">选择车辆状态实体</div>
           </div>
           
           <div class="form-group">
             <label class="form-label">违章信息实体</label>
-            <div class="entity-picker">
-              ${this._renderEntityPicker(vehicle.entities?.violations || '', 'violations', 'vehicle', index)}
-            </div>
+            ${this._renderEntitySelector(vehicle.entities?.violations || '', 'violations', 'vehicle', index)}
             <div class="help-text">选择违章信息实体</div>
           </div>
         </div>
@@ -884,18 +872,30 @@ class DrivingLicenseEditor extends HTMLElement {
     `).join('');
   }
 
-  _renderEntityPicker(selectedValue, field, type, index = -1) {
-    // 使用Home Assistant的标准实体选择器
+  _renderEntitySelector(selectedValue, field, type, index = -1) {
+    const entities = this._getEntities();
+    let options = '<option value="">-- 选择实体 --</option>';
+    
+    entities.forEach(entity => {
+      const selected = entity === selectedValue ? 'selected' : '';
+      options += `<option value="${entity}" ${selected}>${entity}</option>`;
+    });
+    
     return `
-      <ha-entity-picker
-        .hass="${this._hass}"
-        .value="${selectedValue}"
-        data-field="${field}"
-        data-type="${type}"
+      <select 
+        class="entity-select" 
+        data-field="${field}" 
+        data-type="${type}" 
         data-index="${index}"
-        allow-custom-entity
-      ></ha-entity-picker>
+      >
+        ${options}
+      </select>
     `;
+  }
+
+  _getEntities() {
+    if (!this._hass) return [];
+    return Object.keys(this._hass.states).sort();
   }
 
   _getDefaultUser() {
@@ -932,14 +932,13 @@ class DrivingLicenseEditor extends HTMLElement {
       });
     }
 
-    // 实体选择器更新 - 使用事件委托
-    this.addEventListener('value-changed', (e) => {
-      const target = e.target;
-      if (target.tagName === 'HA-ENTITY-PICKER') {
-        const type = target.getAttribute('data-type');
-        const index = parseInt(target.getAttribute('data-index'));
-        const field = target.getAttribute('data-field');
-        const value = e.detail.value;
+    // 实体选择器更新
+    this.querySelectorAll('.entity-select').forEach((select) => {
+      select.addEventListener('change', (e) => {
+        const type = e.target.getAttribute('data-type');
+        const index = parseInt(e.target.getAttribute('data-index'));
+        const field = e.target.getAttribute('data-field');
+        const value = e.target.value;
         
         if (type === 'user') {
           this._updateUserField(index, `entities.${field}`, value);
@@ -950,7 +949,7 @@ class DrivingLicenseEditor extends HTMLElement {
         } else if (type === 'config') {
           this._updateConfig(field, value);
         }
-      }
+      });
     });
 
     // 删除按钮事件
