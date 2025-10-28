@@ -53,7 +53,6 @@ class DrivingLicenseCard extends HTMLElement {
       ...config
     };
 
-    // 确保 users 和 vehicles 数组存在
     if (!this._config.users || this._config.users.length === 0) {
       this._config.users = [{
         name: '请配置姓名',
@@ -140,7 +139,6 @@ class DrivingLicenseCard extends HTMLElement {
   render() {
     if (!this._hass || !this._config) return;
 
-    // 获取最后更新时间
     let lastUpdated = new Date().toLocaleString('zh-CN', {
       year: 'numeric',
       month: '2-digit',
@@ -150,7 +148,6 @@ class DrivingLicenseCard extends HTMLElement {
       second: '2-digit'
     });
 
-    // 尝试从配置的实体获取最后更新时间
     const lastUpdateEntityId = this._config.last_update_entity;
     if (lastUpdateEntityId) {
       const lastUpdateEntity = this.getEntityState(lastUpdateEntityId);
@@ -520,12 +517,13 @@ class DrivingLicenseCard extends HTMLElement {
   }
 }
 
-// 修复的编辑器类 - 使用文本输入框配合实体建议
+// 修复的编辑器类 - 解决输入法冲突问题
 class DrivingLicenseEditor extends HTMLElement {
   constructor() {
     super();
     this._config = {};
     this._hass = null;
+    this._inputTimeout = null;
   }
 
   setConfig(config) {
@@ -971,7 +969,6 @@ class DrivingLicenseEditor extends HTMLElement {
     }
 
     const entities = Object.keys(this._hass.states);
-    // 只显示传感器和输入相关的实体
     const filteredEntities = entities.filter(entityId => 
       entityId.startsWith('sensor.') || 
       entityId.startsWith('input_datetime.') ||
@@ -1007,32 +1004,87 @@ class DrivingLicenseEditor extends HTMLElement {
   }
 
   _bindEvents() {
-    // 绑定输入框变化事件
-    this.querySelectorAll('input[type="text"]').forEach(input => {
-      input.addEventListener('input', this._handleInputChange.bind(this));
-    });
-
+    // 使用更安全的事件绑定方式
+    this._setupInputHandlers();
+    
     // 绑定复选框变化事件
     this.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
-      checkbox.addEventListener('change', this._handleCheckboxChange.bind(this));
+      checkbox.addEventListener('change', (e) => {
+        const target = e.target;
+        const path = target.getAttribute('data-path');
+        this._updateConfig(path, target.checked);
+      });
     });
 
     // 绑定删除按钮事件
     this.querySelectorAll('.remove-btn[data-user-index]').forEach(btn => {
-      btn.addEventListener('click', this._handleRemoveUser.bind(this));
+      btn.addEventListener('click', (e) => {
+        const userIndex = parseInt(e.target.getAttribute('data-user-index'));
+        this._removeUser(userIndex);
+      });
     });
 
     this.querySelectorAll('.remove-btn[data-vehicle-index]').forEach(btn => {
-      btn.addEventListener('click', this._handleRemoveVehicle.bind(this));
+      btn.addEventListener('click', (e) => {
+        const vehicleIndex = parseInt(e.target.getAttribute('data-vehicle-index'));
+        this._removeVehicle(vehicleIndex);
+      });
     });
 
     // 绑定添加按钮事件
-    this.querySelector('#add-user-btn').addEventListener('click', this._addUser.bind(this));
-    this.querySelector('#add-vehicle-btn').addEventListener('click', this._addVehicle.bind(this));
+    this.querySelector('#add-user-btn').addEventListener('click', () => {
+      this._addUser();
+    });
+    this.querySelector('#add-vehicle-btn').addEventListener('click', () => {
+      this._addVehicle();
+    });
   }
 
-  _handleInputChange(e) {
-    const target = e.target;
+  _setupInputHandlers() {
+    // 为所有输入框设置安全的事件处理器
+    const setupInputHandler = (input) => {
+      // 清除现有事件监听器
+      const newInput = input.cloneNode(true);
+      input.parentNode.replaceChild(newInput, input);
+      
+      // 添加 blur 事件（失去焦点时保存）
+      newInput.addEventListener('blur', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        this._handleInputUpdate(e.target);
+      });
+      
+      // 添加防抖的 input 事件
+      newInput.addEventListener('input', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        // 清除之前的超时
+        if (this._inputTimeout) {
+          clearTimeout(this._inputTimeout);
+        }
+        
+        // 设置新的超时（只在停止输入500ms后保存）
+        this._inputTimeout = setTimeout(() => {
+          this._handleInputUpdate(e.target);
+        }, 500);
+      });
+      
+      // 阻止所有可能冲突的键盘事件
+      const stopPropagation = (e) => {
+        e.stopPropagation();
+      };
+      
+      newInput.addEventListener('keydown', stopPropagation);
+      newInput.addEventListener('keyup', stopPropagation);
+      newInput.addEventListener('keypress', stopPropagation);
+    };
+
+    // 设置所有输入框
+    this.querySelectorAll('input[type="text"]').forEach(setupInputHandler);
+  }
+
+  _handleInputUpdate(target) {
     const path = target.getAttribute('data-path');
     
     if (target.classList.contains('user-name')) {
@@ -1057,22 +1109,6 @@ class DrivingLicenseEditor extends HTMLElement {
     } else {
       this._updateConfig(path, target.value);
     }
-  }
-
-  _handleCheckboxChange(e) {
-    const target = e.target;
-    const path = target.getAttribute('data-path');
-    this._updateConfig(path, target.checked);
-  }
-
-  _handleRemoveUser(e) {
-    const userIndex = parseInt(e.target.getAttribute('data-user-index'));
-    this._removeUser(userIndex);
-  }
-
-  _handleRemoveVehicle(e) {
-    const vehicleIndex = parseInt(e.target.getAttribute('data-vehicle-index'));
-    this._removeVehicle(vehicleIndex);
   }
 
   _addUser() {
@@ -1167,4 +1203,4 @@ window.customCards.push({
   documentationURL: 'https://github.com/B361273068/ha-driving-license-card'
 });
 
-console.log('Driving License Card with manual entity input loaded successfully');
+console.log('Fixed Driving License Card with input method support loaded successfully');
