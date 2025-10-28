@@ -1,4 +1,4 @@
-// 主卡片类 - 修改样式以匹配图片
+// 主卡片类 - 修改样式以匹配图片11111
 class DrivingLicenseCard extends HTMLElement {
   constructor() {
     super();
