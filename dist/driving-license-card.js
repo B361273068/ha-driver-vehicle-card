@@ -1,32 +1,3 @@
-[file name]: image.png
-[file content begin]
-驾驶证和车辆状态
-
-驾驶证信息
-
-有效期至    2026-05-20
-
-有效期倒计时    205天
-
-驾驶证状态    正常
-
-扣分情况    3分 / 12分
-
-车辆信息
-
-年审日期    2025-12-15
-
-年审倒计时    49天
-
-车辆状态    正常
-
-违章信息    2条未处理
-
-最后更新: 2025/10/27 14:19:23
-
-
-[file content end]
-
 // 主卡片类 - 修改样式以匹配图片
 class DrivingLicenseCard extends HTMLElement {
   constructor() {
