@@ -516,11 +516,12 @@ class DrivingLicenseCard extends HTMLElement {
   }
 }
 
-// 编辑器类
+// 编辑器类 - 完全重写输入处理
 class DrivingLicenseEditor extends HTMLElement {
   constructor() {
     super();
     this._config = {};
+    this._inputTimeout = null;
   }
 
   setConfig(config) {
@@ -596,6 +597,7 @@ class DrivingLicenseEditor extends HTMLElement {
           color: var(--primary-text-color, #212121);
           font-size: 14px;
           transition: border-color 0.3s ease;
+          box-sizing: border-box;
         }
         
         .form-control:focus {
@@ -692,6 +694,19 @@ class DrivingLicenseEditor extends HTMLElement {
           width: 100%;
         }
         
+        /* 防止语音助手弹出的特殊样式 */
+        .no-voice-assistant {
+          -webkit-user-select: text !important;
+          -moz-user-select: text !important;
+          -ms-user-select: text !important;
+          user-select: text !important;
+        }
+        
+        .no-voice-assistant:focus {
+          outline: 2px solid var(--primary-color) !important;
+          outline-offset: 2px !important;
+        }
+        
         @media (max-width: 768px) {
           .grid-2 {
             grid-template-columns: 1fr;
@@ -716,9 +731,10 @@ class DrivingLicenseEditor extends HTMLElement {
             <label class="form-label">卡片标题</label>
             <input
               type="text"
-              class="form-control"
+              class="form-control no-voice-assistant"
               value="${config.title || '驾驶证和车辆状态'}"
               placeholder="输入卡片标题"
+              id="card-title-input"
             >
             <div class="help-text">设置卡片显示的主标题</div>
           </div>
@@ -752,7 +768,7 @@ class DrivingLicenseEditor extends HTMLElement {
           <div id="users-container">
             ${this._renderUsers()}
           </div>
-          <button class="add-btn" id="add-user-btn">
+          <button class="add-btn" id="add-user-btn" type="button">
             <span>+</span> 添加用户
           </button>
         </div>
@@ -763,7 +779,7 @@ class DrivingLicenseEditor extends HTMLElement {
           <div id="vehicles-container">
             ${this._renderVehicles()}
           </div>
-          <button class="add-btn" id="add-vehicle-btn">
+          <button class="add-btn" id="add-vehicle-btn" type="button">
             <span>+</span> 添加车辆
           </button>
         </div>
@@ -796,7 +812,7 @@ class DrivingLicenseEditor extends HTMLElement {
     const users = this._config.users || [this._getDefaultUser()];
     return users.map((user, index) => `
       <div class="config-item" data-index="${index}">
-        <button class="remove-btn" data-user-index="${index}" ${users.length <= 1 ? 'disabled' : ''} title="删除用户">
+        <button class="remove-btn" data-user-index="${index}" ${users.length <= 1 ? 'disabled' : ''} title="删除用户" type="button">
           删除
         </button>
         
@@ -804,9 +820,10 @@ class DrivingLicenseEditor extends HTMLElement {
           <label class="form-label">👤 用户姓名</label>
           <input
             type="text"
-            class="form-control user-name"
+            class="form-control no-voice-assistant user-name"
             value="${user.name || ''}"
             placeholder="请输入用户姓名"
+            data-index="${index}"
           >
           <div class="help-text">驾驶证持有人的姓名</div>
         </div>
@@ -844,7 +861,7 @@ class DrivingLicenseEditor extends HTMLElement {
     const vehicles = this._config.vehicles || [this._getDefaultVehicle()];
     return vehicles.map((vehicle, index) => `
       <div class="config-item" data-index="${index}">
-        <button class="remove-btn" data-vehicle-index="${index}" ${vehicles.length <= 1 ? 'disabled' : ''} title="删除车辆">
+        <button class="remove-btn" data-vehicle-index="${index}" ${vehicles.length <= 1 ? 'disabled' : ''} title="删除车辆" type="button">
           删除
         </button>
         
@@ -936,40 +953,9 @@ class DrivingLicenseEditor extends HTMLElement {
   }
 
   _bindEvents() {
-    // 阻止事件冒泡的函数
-    const stopPropagation = (e) => {
-      e.stopPropagation();
-      e.stopImmediatePropagation();
-    };
-
-    // 标题更新 - 防止语音助手弹出
-    const titleInput = this.querySelector('input[type="text"]');
-    if (titleInput) {
-      titleInput.addEventListener('input', (e) => {
-        this._updateConfig('title', e.target.value);
-      });
-      // 阻止所有键盘事件冒泡
-      titleInput.addEventListener('keydown', stopPropagation);
-      titleInput.addEventListener('keyup', stopPropagation);
-      titleInput.addEventListener('keypress', stopPropagation);
-      titleInput.addEventListener('focus', stopPropagation);
-      titleInput.addEventListener('blur', stopPropagation);
-    }
-
-    // 用户姓名输入 - 防止语音助手弹出
-    this.querySelectorAll('.user-name').forEach((input) => {
-      input.addEventListener('input', (e) => {
-        const index = this._getParentIndex(e.target);
-        this._updateUserField(index, 'name', e.target.value);
-      });
-      // 阻止所有键盘事件冒泡
-      input.addEventListener('keydown', stopPropagation);
-      input.addEventListener('keyup', stopPropagation);
-      input.addEventListener('keypress', stopPropagation);
-      input.addEventListener('focus', stopPropagation);
-      input.addEventListener('blur', stopPropagation);
-    });
-
+    // 使用更彻底的事件处理方案
+    this._setupInputHandlers();
+    
     // 复选框更新
     const checkbox = this.querySelector('#show-last-updated');
     if (checkbox) {
@@ -1000,6 +986,8 @@ class DrivingLicenseEditor extends HTMLElement {
     // 删除按钮事件
     this.querySelectorAll('.remove-btn[data-user-index]').forEach((btn) => {
       btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
         const index = parseInt(e.target.getAttribute('data-user-index'));
         this._removeUser(index);
       });
@@ -1007,14 +995,92 @@ class DrivingLicenseEditor extends HTMLElement {
 
     this.querySelectorAll('.remove-btn[data-vehicle-index]').forEach((btn) => {
       btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
         const index = parseInt(e.target.getAttribute('data-vehicle-index'));
         this._removeVehicle(index);
       });
     });
 
     // 添加按钮事件
-    this.querySelector('#add-user-btn')?.addEventListener('click', () => this._addUser());
-    this.querySelector('#add-vehicle-btn')?.addEventListener('click', () => this._addVehicle());
+    this.querySelector('#add-user-btn')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      this._addUser();
+    });
+    this.querySelector('#add-vehicle-btn')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      this._addVehicle();
+    });
+  }
+
+  _setupInputHandlers() {
+    // 为所有输入框设置防抖和事件阻止
+    const setupInputHandler = (input) => {
+      // 清除现有事件监听器
+      const newInput = input.cloneNode(true);
+      input.parentNode.replaceChild(newInput, input);
+      
+      // 添加新的事件监听器
+      newInput.addEventListener('input', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        // 清除之前的超时
+        if (this._inputTimeout) {
+          clearTimeout(this._inputTimeout);
+        }
+        
+        // 设置新的超时
+        this._inputTimeout = setTimeout(() => {
+          if (newInput.classList.contains('user-name')) {
+            const index = parseInt(newInput.getAttribute('data-index'));
+            this._updateUserField(index, 'name', newInput.value);
+          } else if (newInput.id === 'card-title-input') {
+            this._updateConfig('title', newInput.value);
+          }
+        }, 300);
+      });
+      
+      // 阻止所有键盘事件
+      const stopAllEvents = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        return false;
+      };
+      
+      newInput.addEventListener('keydown', stopAllEvents);
+      newInput.addEventListener('keyup', stopAllEvents);
+      newInput.addEventListener('keypress', stopAllEvents);
+      newInput.addEventListener('compositionstart', stopAllEvents);
+      newInput.addEventListener('compositionupdate', stopAllEvents);
+      newInput.addEventListener('compositionend', stopAllEvents);
+      
+      // 焦点事件
+      newInput.addEventListener('focus', (e) => {
+        e.stopPropagation();
+      });
+      
+      newInput.addEventListener('blur', (e) => {
+        e.stopPropagation();
+        // 立即更新配置
+        if (newInput.classList.contains('user-name')) {
+          const index = parseInt(newInput.getAttribute('data-index'));
+          this._updateUserField(index, 'name', newInput.value);
+        } else if (newInput.id === 'card-title-input') {
+          this._updateConfig('title', newInput.value);
+        }
+      });
+      
+      // 防止拖拽等操作
+      newInput.addEventListener('dragstart', stopAllEvents);
+      newInput.addEventListener('drop', stopAllEvents);
+    };
+
+    // 设置所有输入框
+    this.querySelectorAll('.no-voice-assistant').forEach(setupInputHandler);
   }
 
   _getParentIndex(element) {
