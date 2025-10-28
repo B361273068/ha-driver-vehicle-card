@@ -1,0 +1,27 @@
+# 驾驶证和车辆状态卡片示例配置
+# 将此配置添加到您的Lovelace仪表板
+
+type: 'custom:driving-license-card'
+title: '驾驶证和车辆状态'
+users:
+  - name: '张三'
+    entities:
+      license_expiry: 'sensor.license_expiry_zhangsan'
+      license_status: 'sensor.license_status_zhangsan'
+      penalty_points: 'sensor.penalty_points_zhangsan'
+  - name: '李四'
+    entities:
+      license_expiry: 'sensor.license_expiry_lisi'
+      license_status: 'sensor.license_status_lisi'
+      penalty_points: 'sensor.penalty_points_lisi'
+vehicles:
+  - plate: '京A12345'
+    entities:
+      inspection_date: 'sensor.inspection_date_vehicle1'
+      vehicle_status: 'sensor.vehicle_status_vehicle1'
+      violations: 'sensor.violations_vehicle1'
+  - plate: '沪B67890'
+    entities:
+      inspection_date: 'sensor.inspection_date_vehicle2'
+      vehicle_status: 'sensor.vehicle_status_vehicle2'
+      violations: 'sensor.violations_vehicle2'

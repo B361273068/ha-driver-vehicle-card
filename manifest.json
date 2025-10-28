@@ -1,0 +1,12 @@
+{
+  "domain": "driving_license_card",
+  "name": "Driving License and Vehicle Status Card",
+  "version": "1.0.0",
+  "documentation": "https://github.com/B361273068/ha-driving-license-card",
+  "issue_tracker": "https://github.com/B361273068/ha-driving-license-card/issues",
+  "requirements": [],
+  "dependencies": [],
+  "codeowners": ["@B361273068"],
+  "config_flow": false,
+  "iot_class": "local_push"
+}
