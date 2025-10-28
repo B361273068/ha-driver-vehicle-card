@@ -1,3 +1,32 @@
+[file name]: image.png
+[file content begin]
+驾驶证和车辆状态
+
+驾驶证信息
+
+有效期至    2026-05-20
+
+有效期倒计时    205天
+
+驾驶证状态    正常
+
+扣分情况    3分 / 12分
+
+车辆信息
+
+年审日期    2025-12-15
+
+年审倒计时    49天
+
+车辆状态    正常
+
+违章信息    2条未处理
+
+最后更新: 2025/10/27 14:19:23
+
+
+[file content end]
+
 // 主卡片类 - 修改样式以匹配图片
 class DrivingLicenseCard extends HTMLElement {
   constructor() {
@@ -179,7 +208,7 @@ class DrivingLicenseCard extends HTMLElement {
         const countdownInfo = this.getCountdownInfo(expiryDays);
         
         return `
-          <div class="license-card">
+          <div class="info-card">
             <div class="card-header">
               <div class="header-icon">🚗</div>
               <div class="header-title">驾驶证信息</div>
@@ -206,7 +235,7 @@ class DrivingLicenseCard extends HTMLElement {
                 <div class="info-row">
                   <div class="info-label">扣分情况</div>
                   <div class="info-value points-${pointsInfo.color}">
-                    ${pointsInfo.text}
+                    ${pointsInfo.text} / 12分
                   </div>
                 </div>
               </div>
@@ -232,7 +261,7 @@ class DrivingLicenseCard extends HTMLElement {
         const countdownInfo = this.getCountdownInfo(inspectionDays);
         
         return `
-          <div class="vehicle-card">
+          <div class="info-card">
             <div class="card-header">
               <div class="header-icon">📄</div>
               <div class="header-title">车辆信息</div>
@@ -297,7 +326,7 @@ class DrivingLicenseCard extends HTMLElement {
           margin-bottom: 20px;
         }
         
-        .license-card, .vehicle-card {
+        .info-card {
           background: var(--card-background-color);
           border-radius: 12px;
           box-shadow: 0 4px 12px rgba(0,0,0,0.1);
@@ -306,7 +335,7 @@ class DrivingLicenseCard extends HTMLElement {
           transition: transform 0.2s ease, box-shadow 0.2s ease;
         }
         
-        .license-card:hover, .vehicle-card:hover {
+        .info-card:hover {
           transform: translateY(-2px);
           box-shadow: 0 6px 16px rgba(0,0,0,0.15);
         }
@@ -399,39 +428,6 @@ class DrivingLicenseCard extends HTMLElement {
           content: "📅 ";
           margin-right: 4px;
         }
-        
-        /* 进度条样式 */
-        .points-progress {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          margin-top: 4px;
-        }
-        
-        .progress-bar {
-          flex: 1;
-          height: 6px;
-          background: var(--divider-color);
-          border-radius: 3px;
-          overflow: hidden;
-        }
-        
-        .progress-fill {
-          height: 100%;
-          border-radius: 3px;
-          transition: width 0.3s ease;
-        }
-        
-        .progress-text {
-          font-size: 11px;
-          color: var(--secondary-text-color);
-          min-width: 35px;
-          font-weight: 500;
-        }
-        
-        .progress-fill.points-green { background: var(--success-color, #4CAF50); }
-        .progress-fill.points-orange { background: var(--warning-color, #FF9800); }
-        .progress-fill.points-red { background: var(--error-color, #F44336); }
         
         @media (max-width: 768px) {
           .cards-grid {
