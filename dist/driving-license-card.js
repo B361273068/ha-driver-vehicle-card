@@ -470,7 +470,7 @@ class DrivingLicenseCard extends HTMLElement {
   }
 }
 
-// 编辑器类 - 保持之前的编辑器代码不变
+// 编辑器类
 class DrivingLicenseEditor extends HTMLElement {
   constructor() {
     super();
@@ -669,22 +669,22 @@ class DrivingLicenseEditor extends HTMLElement {
           ${this._renderEntitySelector(
             '驾驶证有效期实体',
             user.entities?.license_expiry,
-            value => this._updateUserField(index, 'entities.license_expiry', value),
-            'date'
+            index,
+            'license_expiry'
           )}
           
           ${this._renderEntitySelector(
             '驾驶证状态实体',
             user.entities?.license_status,
-            value => this._updateUserField(index, 'entities.license_status', value),
-            'status'
+            index,
+            'license_status'
           )}
           
           ${this._renderEntitySelector(
             '扣分情况实体',
             user.entities?.penalty_points,
-            value => this._updateUserField(index, 'entities.penalty_points', value),
-            'point'
+            index,
+            'penalty_points'
           )}
         </div>
       </div>
@@ -711,36 +711,49 @@ class DrivingLicenseEditor extends HTMLElement {
           ${this._renderEntitySelector(
             '年审日期实体',
             vehicle.entities?.inspection_date,
-            value => this._updateVehicleField(index, 'entities.inspection_date', value),
-            'date'
+            index,
+            'inspection_date',
+            'vehicle'
           )}
           
           ${this._renderEntitySelector(
             '车辆状态实体',
             vehicle.entities?.vehicle_status,
-            value => this._updateVehicleField(index, 'entities.vehicle_status', value),
-            'status'
+            index,
+            'vehicle_status',
+            'vehicle'
           )}
           
           ${this._renderEntitySelector(
             '违章信息实体',
             vehicle.entities?.violations,
-            value => this._updateVehicleField(index, 'entities.violations', value),
-            'violation'
+            index,
+            'violations',
+            'vehicle'
           )}
         </div>
       </div>
     `).join('');
   }
 
-  _renderEntityOptions(selectedValue) {
+  _renderEntitySelector(label, selectedValue, index, field, type = 'user') {
     const entities = this._getEntities();
     let options = '<option value="">-- 选择实体 --</option>';
     entities.forEach(entity => {
       const selected = entity === selectedValue ? 'selected' : '';
       options += `<option value="${entity}" ${selected}>${entity}</option>`;
     });
-    return options;
+    
+    const fieldName = type === 'user' ? `user-${index}-${field}` : `vehicle-${index}-${field}`;
+    
+    return `
+      <div class="form-group">
+        <label class="form-label">${label}</label>
+        <select class="form-control entity-select" data-type="${type}" data-index="${index}" data-field="${field}">
+          ${options}
+        </select>
+      </div>
+    `;
   }
 
   _getEntities() {
@@ -795,53 +808,18 @@ class DrivingLicenseEditor extends HTMLElement {
       });
     });
 
-    this.querySelectorAll('.license-expiry').forEach((select) => {
+    // 实体选择器更新
+    this.querySelectorAll('.entity-select').forEach((select) => {
       select.addEventListener('change', (e) => {
-        const index = this._getParentIndex(e.target);
-        this._updateUserField(index, 'entities.license_expiry', e.target.value);
-      });
-    });
-
-    this.querySelectorAll('.license-status').forEach((select) => {
-      select.addEventListener('change', (e) => {
-        const index = this._getParentIndex(e.target);
-        this._updateUserField(index, 'entities.license_status', e.target.value);
-      });
-    });
-
-    this.querySelectorAll('.penalty-points').forEach((select) => {
-      select.addEventListener('change', (e) => {
-        const index = this._getParentIndex(e.target);
-        this._updateUserField(index, 'entities.penalty_points', e.target.value);
-      });
-    });
-
-    // 车辆配置更新
-    this.querySelectorAll('.vehicle-plate').forEach((input) => {
-      input.addEventListener('input', (e) => {
-        const index = this._getParentIndex(e.target);
-        this._updateVehicleField(index, 'plate', e.target.value);
-      });
-    });
-
-    this.querySelectorAll('.inspection-date').forEach((select) => {
-      select.addEventListener('change', (e) => {
-        const index = this._getParentIndex(e.target);
-        this._updateVehicleField(index, 'entities.inspection_date', e.target.value);
-      });
-    });
-
-    this.querySelectorAll('.vehicle-status').forEach((select) => {
-      select.addEventListener('change', (e) => {
-        const index = this._getParentIndex(e.target);
-        this._updateVehicleField(index, 'entities.vehicle_status', e.target.value);
-      });
-    });
-
-    this.querySelectorAll('.violations').forEach((select) => {
-      select.addEventListener('change', (e) => {
-        const index = this._getParentIndex(e.target);
-        this._updateVehicleField(index, 'entities.violations', e.target.value);
+        const type = e.target.getAttribute('data-type');
+        const index = parseInt(e.target.getAttribute('data-index'));
+        const field = e.target.getAttribute('data-field');
+        
+        if (type === 'user') {
+          this._updateUserField(index, `entities.${field}`, e.target.value);
+        } else {
+          this._updateVehicleField(index, `entities.${field}`, e.target.value);
+        }
       });
     });
 
@@ -966,4 +944,4 @@ window.customCards.push({
   documentationURL: 'https://github.com/B361273068/ha-driving-license-card'
 });
 
-console.log('Modern Driving License Card loaded successfully');
+console.log('Driving License Card with fixed editor loaded successfully');
