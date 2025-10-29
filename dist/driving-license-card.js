@@ -178,10 +178,13 @@ class DrivingLicenseCard extends HTMLElement {
         const pointsInfo = this.getPointsInfo(pointsEntity?.state);
         const countdownInfo = this.getCountdownInfo(expiryDays);
         
+        // 修复：确保标题始终显示，使用用户姓名或默认标题
+        const sectionTitle = user.name ? `${user.name}的驾驶证信息` : '驾驶证信息';
+        
         return `
           <div class="section">
             <div class="section-header">
-              <div class="section-title">${user.name || '驾驶证信息'}</div>
+              <div class="section-title">${sectionTitle}</div>
             </div>
             <div class="section-content">
               <div class="info-grid">
@@ -223,10 +226,12 @@ class DrivingLicenseCard extends HTMLElement {
         const violationsCount = parseInt(violations) || 0;
         const countdownInfo = this.getCountdownInfo(inspectionDays);
         
+        const sectionTitle = plateNumber ? `车辆信息 - ${plateNumber}` : '车辆信息';
+        
         return `
           <div class="section">
             <div class="section-header">
-              <div class="section-title">车辆信息${plateNumber ? ` - ${plateNumber}` : ''}</div>
+              <div class="section-title">${sectionTitle}</div>
             </div>
             <div class="section-content">
               <div class="info-grid">
@@ -268,7 +273,7 @@ class DrivingLicenseCard extends HTMLElement {
         }
         
         .main-header {
-          background: var(--primary-color, #2196F3);
+          background: #2196F3 !important;
           padding: 16px 20px;
           color: white;
         }
@@ -294,7 +299,7 @@ class DrivingLicenseCard extends HTMLElement {
         }
         
         .section-header {
-          background: var(--primary-color, #2196F3);
+          background: #2196F3 !important;
           padding: 12px 16px;
           color: white;
         }
@@ -1253,4 +1258,4 @@ window.customCards.push({
   documentationURL: 'https://github.com/B361273068/ha-driving-license-card'
 });
 
-console.log('Driving License Card with driver name display fixed loaded successfully');
+console.log('Driving License Card with driver name and blue header fixed loaded successfully');
