@@ -1,4 +1,4 @@
-// 主卡片类保持不变
+// 主卡片类 - 修复样式问题
 class DrivingLicenseCard extends HTMLElement {
   constructor() {
     super();
@@ -354,6 +354,7 @@ class DrivingLicenseCard extends HTMLElement {
           background: #2196F3 !important;
           padding: 16px 20px;
           color: white;
+          border-bottom: 2px solid var(--divider-color, #e0e0e0);
         }
         
         .main-title {
@@ -437,12 +438,19 @@ class DrivingLicenseCard extends HTMLElement {
         }
         
         .last-updated {
-          text-align: center;
+          text-align: right;
           font-size: 12px;
           color: var(--secondary-text-color, #666);
           padding: 12px 16px;
-          background: var(--secondary-background-color, #f5f5f5);
+          background: white;
           border-top: 1px solid var(--divider-color, #e0e0e0);
+        }
+        
+        .divider {
+          height: 1px;
+          background: var(--divider-color, #e0e0e0);
+          margin: 0;
+          border: none;
         }
       </style>
       
@@ -466,13 +474,14 @@ class DrivingLicenseCard extends HTMLElement {
   }
 }
 
-// 修复编辑器类 - 添加实体搜索功能和修复新增卡片显示问题
+// 修复编辑器类 - 添加关键字搜索功能
 class DrivingLicenseEditor extends HTMLElement {
   constructor() {
     super();
     this._config = null;
     this._hass = null;
     this._hasRendered = false;
+    this._searchKeyword = '';
   }
 
   setConfig(config) {
@@ -652,10 +661,25 @@ class DrivingLicenseEditor extends HTMLElement {
             background: var(--card-background-color);
             border: 1px solid var(--divider-color);
             border-radius: 4px;
-            max-height: 200px;
+            max-height: 300px;
             overflow-y: auto;
             z-index: 1000;
             box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+          }
+          
+          .search-header {
+            padding: 8px 12px;
+            border-bottom: 1px solid var(--divider-color);
+            background: var(--secondary-background-color);
+          }
+          
+          .search-input {
+            width: 100%;
+            padding: 6px 8px;
+            border: 1px solid var(--divider-color);
+            border-radius: 4px;
+            font-size: 12px;
+            box-sizing: border-box;
           }
           
           .entity-option {
@@ -989,15 +1013,68 @@ class DrivingLicenseEditor extends HTMLElement {
     }
 
     const entities = this.getAllEntities();
-    const filteredEntities = this.filterEntitiesByType(entities, path);
-
+    
     const dropdown = document.createElement('div');
     dropdown.className = 'entity-dropdown';
     
+    // 添加搜索框
+    const searchHeader = document.createElement('div');
+    searchHeader.className = 'search-header';
+    searchHeader.innerHTML = `
+      <input 
+        type="text" 
+        class="search-input" 
+        placeholder="输入关键字搜索实体..." 
+        value="${this._searchKeyword}"
+      >
+      <div style="font-size: 11px; color: var(--secondary-text-color); margin-top: 4px;">
+        支持按实体ID、名称或状态搜索
+      </div>
+    `;
+    dropdown.appendChild(searchHeader);
+
+    const resultsContainer = document.createElement('div');
+    dropdown.appendChild(resultsContainer);
+
+    // 初始显示过滤后的实体
+    this.updateSearchResults(resultsContainer, entities, path, this._searchKeyword);
+
+    // 搜索框输入事件
+    const searchInput = searchHeader.querySelector('.search-input');
+    searchInput.addEventListener('input', (e) => {
+      this._searchKeyword = e.target.value;
+      this.updateSearchResults(resultsContainer, entities, path, this._searchKeyword);
+    });
+
+    searchInput.addEventListener('click', (e) => {
+      e.stopPropagation();
+    });
+
+    searchInput.focus();
+
+    container.appendChild(dropdown);
+  }
+
+  updateSearchResults(container, entities, entityType, keyword = '') {
+    let filteredEntities = this.filterEntitiesByType(entities, entityType);
+    
+    // 关键字搜索
+    if (keyword) {
+      const lowerKeyword = keyword.toLowerCase();
+      filteredEntities = filteredEntities.filter(entity => 
+        entity.entity_id.toLowerCase().includes(lowerKeyword) ||
+        (entity.state && entity.state.toLowerCase().includes(lowerKeyword)) ||
+        (entity.attributes && entity.attributes.friendly_name && 
+         entity.attributes.friendly_name.toLowerCase().includes(lowerKeyword))
+      );
+    }
+
+    container.innerHTML = '';
+
     if (filteredEntities.length === 0) {
-      dropdown.innerHTML = '<div class="entity-option">未找到相关实体</div>';
+      container.innerHTML = '<div class="entity-option">未找到匹配的实体</div>';
     } else {
-      filteredEntities.slice(0, 20).forEach(entity => {
+      filteredEntities.slice(0, 50).forEach(entity => {
         const option = document.createElement('div');
         option.className = 'entity-option';
         const friendlyName = entity.attributes?.friendly_name || '';
@@ -1009,15 +1086,14 @@ class DrivingLicenseEditor extends HTMLElement {
           <div style="font-size: 12px; color: var(--secondary-text-color);">${entity.state}</div>
         `;
         option.addEventListener('click', () => {
+          const input = option.closest('.entity-input-container').querySelector('.config-input');
           input.value = entity.entity_id;
           this.handleInputChange(input);
-          dropdown.remove();
+          this.closeAllDropdowns();
         });
-        dropdown.appendChild(option);
+        container.appendChild(option);
       });
     }
-
-    container.appendChild(dropdown);
   }
 
   getAllEntities() {
@@ -1040,14 +1116,17 @@ class DrivingLicenseEditor extends HTMLElement {
         filteredEntities = entities.filter(entity => 
           entity.entity_id.includes('date') || 
           entity.entity_id.includes('expiry') ||
-          entity.entity_id.includes('inspection')
+          entity.entity_id.includes('inspection') ||
+          entity.entity_id.includes('renew') ||
+          entity.entity_id.includes('valid')
         );
         break;
         
       case 'license_status':
       case 'vehicle_status':
         filteredEntities = entities.filter(entity => 
-          entity.entity_id.includes('status')
+          entity.entity_id.includes('status') ||
+          entity.entity_id.includes('state')
         );
         break;
         
@@ -1055,21 +1134,24 @@ class DrivingLicenseEditor extends HTMLElement {
       case 'violations':
         filteredEntities = entities.filter(entity => 
           entity.entity_id.includes('point') || 
-          entity.entity_id.includes('violation')
+          entity.entity_id.includes('violation') ||
+          entity.entity_id.includes('penalty')
         );
         break;
         
       case 'plate_entity':
         filteredEntities = entities.filter(entity => 
           entity.entity_id.includes('plate') || 
-          entity.entity_id.includes('car')
+          entity.entity_id.includes('car') ||
+          entity.entity_id.includes('vehicle')
         );
         break;
         
       case 'last_update_entity':
         filteredEntities = entities.filter(entity => 
           entity.entity_id.includes('update') || 
-          entity.entity_id.includes('time')
+          entity.entity_id.includes('time') ||
+          entity.entity_id.includes('last')
         );
         break;
     }
@@ -1081,6 +1163,7 @@ class DrivingLicenseEditor extends HTMLElement {
     this.querySelectorAll('.entity-dropdown').forEach(dropdown => {
       dropdown.remove();
     });
+    this._searchKeyword = '';
   }
 
   handleInputChange(target) {
@@ -1138,7 +1221,7 @@ class DrivingLicenseEditor extends HTMLElement {
       entities: { license_expiry: '', license_status: '', penalty_points: '' }
     });
     this.render();
-    this.fireConfigChanged(); // 重要：触发配置更新以显示新卡片
+    this.fireConfigChanged();
   }
 
   addVehicle() {
@@ -1148,7 +1231,7 @@ class DrivingLicenseEditor extends HTMLElement {
       entities: { inspection_date: '', vehicle_status: '', violations: '' }
     });
     this.render();
-    this.fireConfigChanged(); // 重要：触发配置更新以显示新卡片
+    this.fireConfigChanged();
   }
 
   removeItem(type, index) {
@@ -1190,4 +1273,4 @@ window.customCards.push({
   preview: true
 });
 
-console.log('Driving License Card with entity search and add functionality fixed loaded successfully');
+console.log('Driving License Card with enhanced search and styling fixed loaded successfully');
