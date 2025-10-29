@@ -1,4 +1,4 @@
-// 主卡片类保持不变
+// 主卡片类 - 修复配置解析问题
 class DrivingLicenseCard extends HTMLElement {
   constructor() {
     super();
@@ -44,38 +44,90 @@ class DrivingLicenseCard extends HTMLElement {
       throw new Error("配置不能为空");
     }
 
-    this._config = {
+    // 深度合并配置，确保所有必要的字段都存在
+    this._config = this.deepMerge(this.getDefaultConfig(), config);
+    
+    // 确保users和vehicles是数组
+    if (!Array.isArray(this._config.users)) {
+      this._config.users = [this.getDefaultUser()];
+    }
+    
+    if (!Array.isArray(this._config.vehicles)) {
+      this._config.vehicles = [this.getDefaultVehicle()];
+    }
+
+    // 清理空配置
+    this.cleanConfig();
+
+    this.render();
+  }
+
+  getDefaultConfig() {
+    return {
       title: '驾驶证和车辆状态',
       show_last_updated: true,
       last_update_entity: '',
       users: [],
-      vehicles: [],
-      ...config
+      vehicles: []
     };
+  }
 
-    if (!this._config.users || this._config.users.length === 0) {
-      this._config.users = [{
-        name: '请配置姓名',
-        entities: {
-          license_expiry: '',
-          license_status: '',
-          penalty_points: ''
-        }
-      }];
+  getDefaultUser() {
+    return {
+      name: '请配置姓名',
+      entities: {
+        license_expiry: '',
+        license_status: '',
+        penalty_points: ''
+      }
+    };
+  }
+
+  getDefaultVehicle() {
+    return {
+      plate_entity: '',
+      entities: {
+        inspection_date: '',
+        vehicle_status: '',
+        violations: ''
+      }
+    };
+  }
+
+  deepMerge(target, source) {
+    const result = { ...target };
+    
+    for (const key in source) {
+      if (source[key] instanceof Object && key in target) {
+        result[key] = this.deepMerge(target[key], source[key]);
+      } else {
+        result[key] = source[key];
+      }
     }
+    
+    return result;
+  }
 
-    if (!this._config.vehicles || this._config.vehicles.length === 0) {
-      this._config.vehicles = [{
-        plate_entity: '',
-        entities: {
-          inspection_date: '',
-          vehicle_status: '',
-          violations: ''
-        }
-      }];
-    }
+  cleanConfig() {
+    // 清理users配置
+    this._config.users = this._config.users.map(user => ({
+      ...this.getDefaultUser(),
+      ...user,
+      entities: {
+        ...this.getDefaultUser().entities,
+        ...(user.entities || {})
+      }
+    }));
 
-    this.render();
+    // 清理vehicles配置
+    this._config.vehicles = this._config.vehicles.map(vehicle => ({
+      ...this.getDefaultVehicle(),
+      ...vehicle,
+      entities: {
+        ...this.getDefaultVehicle().entities,
+        ...(vehicle.entities || {})
+      }
+    }));
   }
 
   set hass(hass) {
@@ -85,8 +137,8 @@ class DrivingLicenseCard extends HTMLElement {
 
   getCardSize() {
     let size = 2;
-    size += this._config.users.length * 2;
-    size += this._config.vehicles.length * 3;
+    size += (this._config.users?.length || 0) * 2;
+    size += (this._config.vehicles?.length || 0) * 3;
     return size;
   }
 
@@ -167,7 +219,8 @@ class DrivingLicenseCard extends HTMLElement {
     }
 
     const renderUserSection = () => {
-      return this._config.users.map((user, index) => {
+      const users = this._config.users || [];
+      return users.map((user, index) => {
         const expiryEntity = this.getEntityState(user.entities?.license_expiry);
         const statusEntity = this.getEntityState(user.entities?.license_status);
         const pointsEntity = this.getEntityState(user.entities?.penalty_points);
@@ -211,7 +264,8 @@ class DrivingLicenseCard extends HTMLElement {
     };
 
     const renderVehicleSection = () => {
-      return this._config.vehicles.map((vehicle, index) => {
+      const vehicles = this._config.vehicles || [];
+      return vehicles.map((vehicle, index) => {
         const plateEntity = this.getEntityState(vehicle.plate_entity);
         const inspectionEntity = this.getEntityState(vehicle.entities?.inspection_date);
         const statusEntity = this.getEntityState(vehicle.entities?.vehicle_status);
@@ -366,58 +420,6 @@ class DrivingLicenseCard extends HTMLElement {
           background: var(--secondary-background-color, #f5f5f5);
           border-top: 1px solid var(--divider-color, #e0e0e0);
         }
-        
-        @media (max-width: 768px) {
-          .main-header {
-            padding: 14px 16px;
-          }
-          
-          .main-title {
-            font-size: 16px;
-          }
-          
-          .section-header {
-            padding: 10px 14px;
-          }
-          
-          .section-title {
-            fontSize: 15px;
-          }
-          
-          .section-content {
-            padding: 14px;
-          }
-          
-          .info-item {
-            padding: 6px 0;
-          }
-          
-          .info-label, .info-value {
-            font-size: 13px;
-          }
-        }
-        
-        @media (max-width: 480px) {
-          .main-header {
-            padding: 12px 14px;
-          }
-          
-          .main-title {
-            font-size: 15px;
-          }
-          
-          .section-header {
-            padding: 8px 12px;
-          }
-          
-          .section-title {
-            font-size: 14px;
-          }
-          
-          .section-content {
-            padding: 12px;
-          }
-        }
       </style>
       
       <ha-card>
@@ -440,26 +442,52 @@ class DrivingLicenseCard extends HTMLElement {
   }
 }
 
-// 修复编辑器类 - 简化版本避免DOM操作冲突
+// 简化编辑器类
 class DrivingLicenseEditor extends HTMLElement {
   constructor() {
     super();
     this._config = null;
-    this._hass = null;
   }
 
   setConfig(config) {
-    this._config = config || {};
+    this._config = config || this.getDefaultConfig();
     this.render();
   }
 
-  set hass(hass) {
-    this._hass = hass;
-    this.render();
+  getDefaultConfig() {
+    return {
+      title: '驾驶证和车辆状态',
+      show_last_updated: true,
+      last_update_entity: '',
+      users: [this.getDefaultUser()],
+      vehicles: [this.getDefaultVehicle()]
+    };
+  }
+
+  getDefaultUser() {
+    return {
+      name: '示例用户',
+      entities: {
+        license_expiry: '',
+        license_status: '',
+        penalty_points: ''
+      }
+    };
+  }
+
+  getDefaultVehicle() {
+    return {
+      plate_entity: '',
+      entities: {
+        inspection_date: '',
+        vehicle_status: '',
+        violations: ''
+      }
+    };
   }
 
   render() {
-    const config = this._config || {};
+    const config = this._config;
     
     this.innerHTML = `
       <div class="card-config">
@@ -606,12 +634,6 @@ class DrivingLicenseEditor extends HTMLElement {
             grid-template-columns: 1fr 1fr;
             gap: 12px;
           }
-          
-          @media (max-width: 768px) {
-            .entity-grid {
-              grid-template-columns: 1fr;
-            }
-          }
         </style>
       </div>
     `;
@@ -751,28 +773,6 @@ class DrivingLicenseEditor extends HTMLElement {
     `).join('');
   }
 
-  getDefaultUser() {
-    return {
-      name: '新用户',
-      entities: {
-        license_expiry: '',
-        license_status: '',
-        penalty_points: ''
-      }
-    };
-  }
-
-  getDefaultVehicle() {
-    return {
-      plate_entity: '',
-      entities: {
-        inspection_date: '',
-        vehicle_status: '',
-        violations: ''
-      }
-    };
-  }
-
   setupEventListeners() {
     // 输入框事件
     this.querySelectorAll('input').forEach(input => {
@@ -791,8 +791,6 @@ class DrivingLicenseEditor extends HTMLElement {
     // 删除按钮事件
     this.querySelectorAll('.remove-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
         const type = e.target.dataset.type;
         const index = parseInt(e.target.dataset.index);
         this.removeItem(type, index);
@@ -826,13 +824,11 @@ class DrivingLicenseEditor extends HTMLElement {
   }
 
   updateConfig(key, value) {
-    if (!this._config) this._config = {};
     this._config[key] = value;
     this.fireConfigChanged();
   }
 
   updateUserField(index, field, value) {
-    if (!this._config.users) this._config.users = [this.getDefaultUser()];
     if (!this._config.users[index]) return;
 
     if (field === 'name') {
@@ -848,7 +844,6 @@ class DrivingLicenseEditor extends HTMLElement {
   }
 
   updateVehicleField(index, field, value) {
-    if (!this._config.vehicles) this._config.vehicles = [this.getDefaultVehicle()];
     if (!this._config.vehicles[index]) return;
 
     if (field === 'plate_entity') {
@@ -864,28 +859,22 @@ class DrivingLicenseEditor extends HTMLElement {
   }
 
   addUser() {
-    if (!this._config.users) this._config.users = [];
     this._config.users.push(this.getDefaultUser());
     this.render();
   }
 
   addVehicle() {
-    if (!this._config.vehicles) this._config.vehicles = [];
     this._config.vehicles.push(this.getDefaultVehicle());
     this.render();
   }
 
   removeItem(type, index) {
-    if (type === 'user') {
-      if (this._config.users && this._config.users.length > 1) {
-        this._config.users.splice(index, 1);
-        this.render();
-      }
-    } else if (type === 'vehicle') {
-      if (this._config.vehicles && this._config.vehicles.length > 1) {
-        this._config.vehicles.splice(index, 1);
-        this.render();
-      }
+    if (type === 'user' && this._config.users.length > 1) {
+      this._config.users.splice(index, 1);
+      this.render();
+    } else if (type === 'vehicle' && this._config.vehicles.length > 1) {
+      this._config.vehicles.splice(index, 1);
+      this.render();
     }
   }
 
@@ -916,4 +905,4 @@ window.customCards.push({
   preview: true
 });
 
-console.log('Driving License Card loaded successfully');
+console.log('Driving License Card with fixed configuration parsing loaded successfully');
