@@ -1,4 +1,4 @@
-// 主卡片类 - 修复样式问题
+// 主卡片类 - 修改样式和添加图标
 class DrivingLicenseCard extends HTMLElement {
   constructor() {
     super();
@@ -260,7 +260,10 @@ class DrivingLicenseCard extends HTMLElement {
         return `
           <div class="section">
             <div class="section-header">
-              <div class="section-title">${sectionTitle}</div>
+              <div class="section-title">
+                <span class="icon license-icon">📄</span>
+                ${sectionTitle}
+              </div>
             </div>
             <div class="section-content">
               <div class="info-grid">
@@ -309,7 +312,10 @@ class DrivingLicenseCard extends HTMLElement {
         return `
           <div class="section">
             <div class="section-header">
-              <div class="section-title">${sectionTitle}</div>
+              <div class="section-title">
+                <span class="icon car-icon">🚗</span>
+                ${sectionTitle}
+              </div>
             </div>
             <div class="section-content">
               <div class="info-grid">
@@ -378,14 +384,30 @@ class DrivingLicenseCard extends HTMLElement {
         }
         
         .section-header {
-          background: #2196F3 !important;
+          background: white !important;
           padding: 12px 16px;
-          color: white;
+          border-bottom: 1px solid var(--divider-color, #e0e0e0);
         }
         
         .section-title {
           font-size: 16px;
           font-weight: 600;
+          color: #000000 !important;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+        
+        .icon {
+          font-size: 18px;
+        }
+        
+        .license-icon {
+          /* 证件图标 */
+        }
+        
+        .car-icon {
+          /* 汽车图标 */
         }
         
         .section-content {
@@ -440,7 +462,7 @@ class DrivingLicenseCard extends HTMLElement {
         .last-updated {
           text-align: right;
           font-size: 12px;
-          color: var(--secondary-text-color, #666);
+          color: #000000 !important;
           padding: 12px 16px;
           background: white;
           border-top: 1px solid var(--divider-color, #e0e0e0);
@@ -474,7 +496,7 @@ class DrivingLicenseCard extends HTMLElement {
   }
 }
 
-// 修复编辑器类 - 添加关键字搜索功能
+// 编辑器类保持不变
 class DrivingLicenseEditor extends HTMLElement {
   constructor() {
     super();
@@ -1273,4 +1295,4 @@ window.customCards.push({
   preview: true
 });
 
-console.log('Driving License Card with enhanced search and styling fixed loaded successfully');
+console.log('Driving License Card with enhanced styling and icons loaded successfully');
