@@ -14,6 +14,8 @@
 - 自动计算倒计时天数
 - 根据状态颜色标识（正常、警告、危险）
 - 响应式设计，适配不同屏幕尺寸
+- 支持搜索Home Assistant中所有集成的实体
+
 
 ## 安装方法
 
@@ -39,126 +41,6 @@
    ```
 5. 重启Home Assistant
 
-## 配置方法
-
-### 基本配置
-
-```yaml
-type: 'custom:driving-license-card'
-title: '驾驶证和车辆状态'
-users:
-  - name: '张三'
-    entities:
-      license_expiry: 'sensor.license_expiry_zhangsan'
-      license_status: 'sensor.license_status_zhangsan'
-      penalty_points: 'sensor.penalty_points_zhangsan'
-vehicles:
-  - plate: '京A12345'
-    entities:
-      inspection_date: 'sensor.inspection_date_vehicle1'
-      vehicle_status: 'sensor.vehicle_status_vehicle1'
-      violations: 'sensor.violations_vehicle1'
-```
-
-### 多用户和多车辆配置
-
-```yaml
-type: 'custom:driving-license-card'
-title: '驾驶证和车辆状态'
-users:
-  - name: '张三'
-    entities:
-      license_expiry: 'sensor.license_expiry_zhangsan'
-      license_status: 'sensor.license_status_zhangsan'
-      penalty_points: 'sensor.penalty_points_zhangsan'
-  - name: '李四'
-    entities:
-      license_expiry: 'sensor.license_expiry_lisi'
-      license_status: 'sensor.license_status_lisi'
-      penalty_points: 'sensor.penalty_points_lisi'
-vehicles:
-  - plate: '京A12345'
-    entities:
-      inspection_date: 'sensor.inspection_date_vehicle1'
-      vehicle_status: 'sensor.vehicle_status_vehicle1'
-      violations: 'sensor.violations_vehicle1'
-  - plate: '沪B67890'
-    entities:
-      inspection_date: 'sensor.inspection_date_vehicle2'
-      vehicle_status: 'sensor.vehicle_status_vehicle2'
-      violations: 'sensor.violations_vehicle2'
-```
-
-### 实体配置示例
-
-你需要在Home Assistant中创建以下类型的实体：
-
-#### 驾驶证有效期实体
-```yaml
-sensor:
-  - platform: template
-    sensors:
-      license_expiry_zhangsan:
-        friendly_name: "张三驾驶证有效期"
-        value_template: "2026-05-20"
-        unit_of_measurement: "日期"
-```
-
-#### 驾驶证状态实体
-```yaml
-sensor:
-  - platform: template
-    sensors:
-      license_status_zhangsan:
-        friendly_name: "张三驾驶证状态"
-        value_template: "正常"
-```
-
-#### 扣分情况实体
-```yaml
-sensor:
-  - platform: template
-    sensors:
-      penalty_points_zhangsan:
-        friendly_name: "张三扣分情况"
-        value_template: "3"
-        attributes:
-          max_points: 12
-```
-
-#### 车辆年审日期实体
-```yaml
-sensor:
-  - platform: template
-    sensors:
-      inspection_date_vehicle1:
-        friendly_name: "车辆1年审日期"
-        value_template: "2025-12-15"
-        unit_of_measurement: "日期"
-```
-
-#### 车辆状态实体
-```yaml
-sensor:
-  - platform: template
-    sensors:
-      vehicle_status_vehicle1:
-        friendly_name: "车辆1状态"
-        value_template: "正常"
-```
-
-#### 违章信息实体
-```yaml
-sensor:
-  - platform: template
-    sensors:
-      violations_vehicle1:
-        friendly_name: "车辆1违章信息"
-        value_template: "2"
-        attributes:
-          description: "2条未处理"
-          unit_of_measurement: "条"
-```
 
 ## 使用可视化编辑器
 
@@ -182,13 +64,6 @@ sensor:
 2. 扣分情况实体应包含`max_points`属性（默认为12）
 3. 违章信息实体可包含`description`属性用于显示详细信息
 4. 卡片会自动计算倒计时天数，负数表示已过期
-
-## 未来计划
-
-- 添加提醒功能
-- 添加历史记录查看
-- 支持深色模式
-- 添加更多状态信息
 
 ## 问题反馈
 
