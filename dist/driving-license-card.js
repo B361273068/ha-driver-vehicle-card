@@ -1,4 +1,4 @@
-// 主卡片类 - 修改为垂直布局
+// 主卡片类 - 修复驾驶员姓名显示和标题颜色
 class DrivingLicenseCard extends HTMLElement {
   constructor() {
     super();
@@ -181,13 +181,13 @@ class DrivingLicenseCard extends HTMLElement {
         return `
           <div class="section">
             <div class="section-header">
-              <div class="section-title">驾驶证信息</div>
+              <div class="section-title">${user.name || '驾驶证信息'}</div>
             </div>
             <div class="section-content">
               <div class="info-grid">
                 <div class="info-item">
                   <span class="info-label">有效期至</span>
-                  <span class="info-value">${expiryDate || '未配置'}</span>
+                  <span class="info-value">${expiryDate || '未知'}</span>
                 </div>
                 <div class="info-item">
                   <span class="info-label">有效期倒计时</span>
@@ -226,13 +226,13 @@ class DrivingLicenseCard extends HTMLElement {
         return `
           <div class="section">
             <div class="section-header">
-              <div class="section-title">车辆信息</div>
+              <div class="section-title">车辆信息${plateNumber ? ` - ${plateNumber}` : ''}</div>
             </div>
             <div class="section-content">
               <div class="info-grid">
                 <div class="info-item">
                   <span class="info-label">年审日期</span>
-                  <span class="info-value">${inspectionDate || '未配置'}</span>
+                  <span class="info-value">${inspectionDate || '未知'}</span>
                 </div>
                 <div class="info-item">
                   <span class="info-label">年审倒计时</span>
@@ -437,7 +437,7 @@ class DrivingLicenseCard extends HTMLElement {
   }
 }
 
-// 编辑器类保持不变（使用之前带有实体搜索功能的版本）
+// 编辑器类保持不变
 class DrivingLicenseEditor extends HTMLElement {
   constructor() {
     super();
@@ -781,7 +781,7 @@ class DrivingLicenseEditor extends HTMLElement {
             data-user-index="${index}"
             data-path="name"
           >
-          <div class="help-text">驾驶证持有人的姓名</div>
+          <div class="help-text">驾驶证持有人的姓名（将显示在卡片标题中）</div>
         </div>
         
         <div class="grid-2">
@@ -1253,4 +1253,4 @@ window.customCards.push({
   documentationURL: 'https://github.com/B361273068/ha-driving-license-card'
 });
 
-console.log('Driving License Card with vertical layout loaded successfully');
+console.log('Driving License Card with driver name display fixed loaded successfully');
