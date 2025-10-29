@@ -2,7 +2,8 @@
 
 一个用于Home Assistant Lovelace界面的自定义卡片，用于展示驾驶证和车辆状态信息。
 
-![驾驶证和车辆状态卡片](https://p3-flow-imagex-download-sign.byteimg.com/tos-cn-i-a9rns2rl98/e4e292de120d403da324c1e83eb99a3f.png~tplv-a9rns2rl98-24:720:720.png?rcl=20251028140934E8AD7E6835B6EFAF35A9&rk3s=8e244e95&rrcfp=8a172a1a&x-expires=1762236574&x-signature=DOiFcsQzkLVDk0A39PkNhFkyuNg%3D)
+<img width="491" height="650" alt="image" src="https://github.com/user-attachments/assets/c466f595-ede5-4dc5-9268-94f091175a5d" />
+
 
 ## 功能特点
 
