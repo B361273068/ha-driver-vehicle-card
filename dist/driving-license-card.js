@@ -1,4 +1,4 @@
-// 主卡片类 - 修复配置解析问题
+// 主卡片类保持不变
 class DrivingLicenseCard extends HTMLElement {
   constructor() {
     super();
@@ -474,11 +474,13 @@ class DrivingLicenseCard extends HTMLElement {
   }
 }
 
-// 简化编辑器类
+// 修复编辑器类 - 使用防抖和优化渲染
 class DrivingLicenseEditor extends HTMLElement {
   constructor() {
     super();
     this._config = null;
+    this._inputTimeouts = new Map(); // 用于存储输入超时
+    this._activeInput = null; // 当前活动的输入框
   }
 
   setConfig(config) {
@@ -513,6 +515,9 @@ class DrivingLicenseEditor extends HTMLElement {
   render() {
     const config = this._config;
     
+    // 保存当前活动输入框的值和焦点状态
+    const activeInputData = this.saveActiveInputState();
+    
     this.innerHTML = `
       <div class="card-config">
         <div class="config-section">
@@ -525,6 +530,7 @@ class DrivingLicenseEditor extends HTMLElement {
               value="${config.title || '驾驶证和车辆状态'}" 
               data-path="title"
               class="config-input"
+              data-input-id="title"
             >
           </div>
           
@@ -534,6 +540,7 @@ class DrivingLicenseEditor extends HTMLElement {
                 type="checkbox" 
                 ${config.show_last_updated !== false ? 'checked' : ''}
                 data-path="show_last_updated"
+                data-input-id="show_last_updated"
               >
               显示最后更新时间
             </label>
@@ -547,6 +554,7 @@ class DrivingLicenseEditor extends HTMLElement {
               data-path="last_update_entity"
               class="config-input"
               placeholder="sensor.last_update_time"
+              data-input-id="last_update_entity"
             >
           </div>
         </div>
@@ -556,7 +564,7 @@ class DrivingLicenseEditor extends HTMLElement {
           <div id="users-container">
             ${this.renderUsers()}
           </div>
-          <button class="add-btn" id="add-user">+ 添加用户</button>
+          <button class="add-btn" id="add-user" type="button">+ 添加用户</button>
         </div>
 
         <div class="config-section">
@@ -564,7 +572,7 @@ class DrivingLicenseEditor extends HTMLElement {
           <div id="vehicles-container">
             ${this.renderVehicles()}
           </div>
-          <button class="add-btn" id="add-vehicle">+ 添加车辆</button>
+          <button class="add-btn" id="add-vehicle" type="button">+ 添加车辆</button>
         </div>
 
         <style>
@@ -607,12 +615,26 @@ class DrivingLicenseEditor extends HTMLElement {
             background: var(--card-background-color);
             color: var(--primary-text-color);
             box-sizing: border-box;
+            font-size: 14px;
+          }
+          
+          .config-input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px rgba(var(--primary-color), 0.2);
           }
           
           .checkbox-group label {
             display: flex;
             align-items: center;
             gap: 8px;
+            cursor: pointer;
+          }
+          
+          .checkbox-group input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
           }
           
           .user-config, .vehicle-config {
@@ -651,6 +673,11 @@ class DrivingLicenseEditor extends HTMLElement {
             cursor: pointer;
             width: 100%;
             font-size: 14px;
+            margin-top: 8px;
+          }
+          
+          .add-btn:hover {
+            background: var(--dark-primary-color);
           }
           
           .entity-grid {
@@ -658,11 +685,20 @@ class DrivingLicenseEditor extends HTMLElement {
             grid-template-columns: 1fr 1fr;
             gap: 12px;
           }
+          
+          @media (max-width: 768px) {
+            .entity-grid {
+              grid-template-columns: 1fr;
+            }
+          }
         </style>
       </div>
     `;
 
     this.setupEventListeners();
+    
+    // 恢复活动输入框的状态
+    this.restoreActiveInputState(activeInputData);
   }
 
   renderUsers() {
@@ -674,7 +710,7 @@ class DrivingLicenseEditor extends HTMLElement {
     return users.map((user, index) => `
       <div class="user-config" data-index="${index}">
         <button class="remove-btn" data-type="user" data-index="${index}" 
-                ${users.length <= 1 ? 'disabled' : ''}>
+                ${users.length <= 1 ? 'disabled' : ''} type="button">
           删除
         </button>
         
@@ -688,6 +724,7 @@ class DrivingLicenseEditor extends HTMLElement {
             data-path="name"
             class="config-input"
             placeholder="请输入用户姓名"
+            data-input-id="user-${index}-name"
           >
         </div>
         
@@ -702,6 +739,7 @@ class DrivingLicenseEditor extends HTMLElement {
               data-path="license_expiry"
               class="config-input"
               placeholder="sensor.license_expiry"
+              data-input-id="user-${index}-license_expiry"
             >
           </div>
           
@@ -715,6 +753,7 @@ class DrivingLicenseEditor extends HTMLElement {
               data-path="license_status"
               class="config-input"
               placeholder="sensor.license_status"
+              data-input-id="user-${index}-license_status"
             >
           </div>
           
@@ -728,6 +767,7 @@ class DrivingLicenseEditor extends HTMLElement {
               data-path="penalty_points"
               class="config-input"
               placeholder="sensor.penalty_points"
+              data-input-id="user-${index}-penalty_points"
             >
           </div>
         </div>
@@ -744,7 +784,7 @@ class DrivingLicenseEditor extends HTMLElement {
     return vehicles.map((vehicle, index) => `
       <div class="vehicle-config" data-index="${index}">
         <button class="remove-btn" data-type="vehicle" data-index="${index}"
-                ${vehicles.length <= 1 ? 'disabled' : ''}>
+                ${vehicles.length <= 1 ? 'disabled' : ''} type="button">
           删除
         </button>
         
@@ -758,6 +798,7 @@ class DrivingLicenseEditor extends HTMLElement {
             data-path="plate_entity"
             class="config-input"
             placeholder="sensor.car_plate"
+            data-input-id="vehicle-${index}-plate_entity"
           >
         </div>
         
@@ -772,6 +813,7 @@ class DrivingLicenseEditor extends HTMLElement {
               data-path="inspection_date"
               class="config-input"
               placeholder="sensor.inspection_date"
+              data-input-id="vehicle-${index}-inspection_date"
             >
           </div>
           
@@ -785,6 +827,7 @@ class DrivingLicenseEditor extends HTMLElement {
               data-path="vehicle_status"
               class="config-input"
               placeholder="sensor.vehicle_status"
+              data-input-id="vehicle-${index}-vehicle_status"
             >
           </div>
           
@@ -798,6 +841,7 @@ class DrivingLicenseEditor extends HTMLElement {
               data-path="violations"
               class="config-input"
               placeholder="sensor.violations"
+              data-input-id="vehicle-${index}-violations"
             >
           </div>
         </div>
@@ -805,15 +849,65 @@ class DrivingLicenseEditor extends HTMLElement {
     `).join('');
   }
 
+  saveActiveInputState() {
+    if (!this._activeInput) return null;
+    
+    const input = this._activeInput;
+    return {
+      inputId: input.getAttribute('data-input-id'),
+      value: input.value,
+      selectionStart: input.selectionStart,
+      selectionEnd: input.selectionEnd
+    };
+  }
+
+  restoreActiveInputState(activeInputData) {
+    if (!activeInputData) return;
+    
+    const input = this.querySelector(`[data-input-id="${activeInputData.inputId}"]`);
+    if (input) {
+      input.value = activeInputData.value;
+      input.focus();
+      input.setSelectionRange(activeInputData.selectionStart, activeInputData.selectionEnd);
+      this._activeInput = input;
+    }
+  }
+
   setupEventListeners() {
-    // 输入框事件
+    // 输入框事件 - 使用防抖
     this.querySelectorAll('input').forEach(input => {
+      // 保存当前活动输入框
+      input.addEventListener('focus', (e) => {
+        this._activeInput = e.target;
+      });
+      
+      input.addEventListener('blur', (e) => {
+        if (this._activeInput === e.target) {
+          this._activeInput = null;
+        }
+      });
+      
+      // 输入事件使用防抖
       input.addEventListener('input', (e) => {
-        this.handleInputChange(e.target);
+        const target = e.target;
+        const inputId = target.getAttribute('data-input-id');
+        
+        // 清除之前的超时
+        if (this._inputTimeouts.has(inputId)) {
+          clearTimeout(this._inputTimeouts.get(inputId));
+        }
+        
+        // 设置新的超时
+        const timeout = setTimeout(() => {
+          this.handleInputChange(target);
+          this._inputTimeouts.delete(inputId);
+        }, 500); // 500ms 防抖延迟
+        
+        this._inputTimeouts.set(inputId, timeout);
       });
     });
 
-    // 复选框事件
+    // 复选框事件 - 立即触发
     this.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
       checkbox.addEventListener('change', (e) => {
         this.handleInputChange(e.target);
@@ -823,6 +917,8 @@ class DrivingLicenseEditor extends HTMLElement {
     // 删除按钮事件
     this.querySelectorAll('.remove-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
         const type = e.target.dataset.type;
         const index = parseInt(e.target.dataset.index);
         this.removeItem(type, index);
@@ -830,11 +926,13 @@ class DrivingLicenseEditor extends HTMLElement {
     });
 
     // 添加按钮事件
-    this.querySelector('#add-user').addEventListener('click', () => {
+    this.querySelector('#add-user').addEventListener('click', (e) => {
+      e.preventDefault();
       this.addUser();
     });
 
-    this.querySelector('#add-vehicle').addEventListener('click', () => {
+    this.querySelector('#add-vehicle').addEventListener('click', (e) => {
+      e.preventDefault();
       this.addVehicle();
     });
   }
@@ -853,11 +951,13 @@ class DrivingLicenseEditor extends HTMLElement {
     } else {
       this.updateConfig(path, value);
     }
+    
+    // 不重新渲染，只更新配置
+    this.fireConfigChanged();
   }
 
   updateConfig(key, value) {
     this._config[key] = value;
-    this.fireConfigChanged();
   }
 
   updateUserField(index, field, value) {
@@ -871,8 +971,6 @@ class DrivingLicenseEditor extends HTMLElement {
       }
       this._config.users[index].entities[field] = value;
     }
-
-    this.fireConfigChanged();
   }
 
   updateVehicleField(index, field, value) {
@@ -886,8 +984,6 @@ class DrivingLicenseEditor extends HTMLElement {
       }
       this._config.vehicles[index].entities[field] = value;
     }
-
-    this.fireConfigChanged();
   }
 
   addUser() {
@@ -895,7 +991,7 @@ class DrivingLicenseEditor extends HTMLElement {
       name: '新用户',
       entities: { license_expiry: '', license_status: '', penalty_points: '' }
     });
-    this.render();
+    this.render(); // 只有添加/删除操作才重新渲染
   }
 
   addVehicle() {
@@ -903,16 +999,16 @@ class DrivingLicenseEditor extends HTMLElement {
       plate_entity: '',
       entities: { inspection_date: '', vehicle_status: '', violations: '' }
     });
-    this.render();
+    this.render(); // 只有添加/删除操作才重新渲染
   }
 
   removeItem(type, index) {
     if (type === 'user' && this._config.users.length > 1) {
       this._config.users.splice(index, 1);
-      this.render();
+      this.render(); // 只有添加/删除操作才重新渲染
     } else if (type === 'vehicle' && this._config.vehicles.length > 1) {
       this._config.vehicles.splice(index, 1);
-      this.render();
+      this.render(); // 只有添加/删除操作才重新渲染
     }
   }
 
@@ -943,4 +1039,4 @@ window.customCards.push({
   preview: true
 });
 
-console.log('Driving License Card with robust configuration parsing loaded successfully');
+console.log('Driving License Card with fixed input focus issue loaded successfully');
