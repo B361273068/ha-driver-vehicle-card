@@ -381,7 +381,7 @@ class DrivingLicenseCard extends HTMLElement {
           }
           
           .section-title {
-            font-size: 15px;
+            fontSize: 15px;
           }
           
           .section-content {
@@ -440,47 +440,88 @@ class DrivingLicenseCard extends HTMLElement {
   }
 }
 
-// 修复删除功能的编辑器类
+// 修复编辑器类 - 简化版本避免DOM操作冲突
 class DrivingLicenseEditor extends HTMLElement {
   constructor() {
     super();
-    this._config = {};
+    this._config = null;
     this._hass = null;
-    this._inputTimeout = null;
-    this._searchKeyword = '';
   }
 
   setConfig(config) {
-    if (!config) {
-      config = {};
-    }
-    this._config = config;
-    this._render();
+    this._config = config || {};
+    this.render();
   }
 
   set hass(hass) {
     this._hass = hass;
-    if (this._config) {
-      this._render();
-    }
+    this.render();
   }
 
-  _render() {
-    if (!this._config) {
-      this._config = {};
-    }
-
-    const config = this._config;
-
+  render() {
+    const config = this._config || {};
+    
     this.innerHTML = `
-      <div class="editor-container">
+      <div class="card-config">
+        <div class="config-section">
+          <div class="section-header">基本配置</div>
+          
+          <div class="form-group">
+            <label>卡片标题</label>
+            <input 
+              type="text" 
+              value="${config.title || '驾驶证和车辆状态'}" 
+              data-path="title"
+              class="config-input"
+            >
+          </div>
+          
+          <div class="form-group checkbox-group">
+            <label>
+              <input 
+                type="checkbox" 
+                ${config.show_last_updated !== false ? 'checked' : ''}
+                data-path="show_last_updated"
+              >
+              显示最后更新时间
+            </label>
+          </div>
+          
+          <div class="form-group">
+            <label>最后更新时间实体</label>
+            <input 
+              type="text" 
+              value="${config.last_update_entity || ''}" 
+              data-path="last_update_entity"
+              class="config-input"
+              placeholder="sensor.last_update_time"
+            >
+          </div>
+        </div>
+
+        <div class="config-section">
+          <div class="section-header">驾驶证信息配置</div>
+          <div id="users-container">
+            ${this.renderUsers()}
+          </div>
+          <button class="add-btn" id="add-user">+ 添加用户</button>
+        </div>
+
+        <div class="config-section">
+          <div class="section-header">车辆信息配置</div>
+          <div id="vehicles-container">
+            ${this.renderVehicles()}
+          </div>
+          <button class="add-btn" id="add-vehicle">+ 添加车辆</button>
+        </div>
+
         <style>
-          .editor-container {
+          .card-config {
             padding: 16px;
             font-family: var(--paper-font-body1_-_font-family);
           }
           
-          .section {
+          .config-section {
             margin-bottom: 24px;
             padding: 16px;
             border: 1px solid var(--divider-color);
@@ -488,10 +529,9 @@ class DrivingLicenseEditor extends HTMLElement {
             background: var(--card-background-color);
           }
           
-          .section-title {
+          .section-header {
             font-size: 16px;
             font-weight: 600;
-            color: var(--primary-text-color);
             margin-bottom: 16px;
             padding-bottom: 8px;
             border-bottom: 1px solid var(--divider-color);
@@ -499,113 +539,31 @@ class DrivingLicenseEditor extends HTMLElement {
           
           .form-group {
             margin-bottom: 16px;
-            position: relative;
           }
           
-          .form-label {
+          .form-group label {
             display: block;
             margin-bottom: 8px;
             font-weight: 500;
-            color: var(--primary-text-color);
-            font-size: 14px;
           }
           
-          .text-input {
+          .config-input {
             width: 100%;
             padding: 8px 12px;
             border: 1px solid var(--divider-color);
             border-radius: 4px;
             background: var(--card-background-color);
             color: var(--primary-text-color);
-            font-size: 14px;
             box-sizing: border-box;
           }
           
-          .text-input:focus {
-            outline: none;
-            border-color: var(--primary-color);
+          .checkbox-group label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
           }
           
-          .entity-input-container {
-            position: relative;
-          }
-          
-          .search-btn {
-            position: absolute;
-            right: 8px;
-            top: 50%;
-            transform: translateY(-50%);
-            background: var(--primary-color);
-            color: white;
-            border: none;
-            border-radius: 4px;
-            padding: 4px 8px;
-            cursor: pointer;
-            font-size: 12px;
-            font-weight: 500;
-          }
-          
-          .search-btn:hover {
-            background: var(--dark-primary-color);
-          }
-          
-          .entity-dropdown {
-            position: absolute;
-            top: 100%;
-            left: 0;
-            right: 0;
-            background: var(--card-background-color);
-            border: 1px solid var(--divider-color);
-            border-radius: 4px;
-            max-height: 300px;
-            overflow-y: auto;
-            z-index: 1000;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-          }
-          
-          .search-header {
-            padding: 8px 12px;
-            border-bottom: 1px solid var(--divider-color);
-            background: var(--secondary-background-color);
-          }
-          
-          .search-input {
-            width: 100%;
-            padding: 6px 8px;
-            border: 1px solid var(--divider-color);
-            border-radius: 4px;
-            font-size: 12px;
-            box-sizing: border-box;
-          }
-          
-          .entity-option {
-            padding: 8px 12px;
-            cursor: pointer;
-            border-bottom: 1px solid var(--divider-color);
-            font-size: 14px;
-          }
-          
-          .entity-option:hover {
-            background: var(--primary-color);
-            color: white;
-          }
-          
-          .entity-option:last-child {
-            border-bottom: none;
-          }
-          
-          .entity-id {
-            font-weight: 600;
-            color: var(--primary-text-color);
-          }
-          
-          .entity-state {
-            font-size: 12px;
-            color: var(--secondary-text-color);
-            margin-left: 8px;
-          }
-          
-          .config-item {
+          .user-config, .vehicle-config {
             position: relative;
             padding: 16px;
             margin-bottom: 16px;
@@ -625,11 +583,6 @@ class DrivingLicenseEditor extends HTMLElement {
             padding: 6px 10px;
             cursor: pointer;
             font-size: 12px;
-            font-weight: 500;
-          }
-          
-          .remove-btn:hover {
-            background: var(--dark-error-color);
           }
           
           .remove-btn:disabled {
@@ -644,304 +597,161 @@ class DrivingLicenseEditor extends HTMLElement {
             border-radius: 4px;
             padding: 10px 16px;
             cursor: pointer;
-            margin-top: 8px;
+            width: 100%;
             font-size: 14px;
-            font-weight: 500;
           }
           
-          .add-btn:hover {
-            background: var(--dark-primary-color);
-          }
-          
-          .grid-2 {
+          .entity-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 16px;
-          }
-          
-          .help-text {
-            font-size: 12px;
-            color: var(--secondary-text-color);
-            margin-top: 4px;
-            font-style: italic;
-          }
-          
-          .checkbox-group {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 8px 0;
-          }
-          
-          .checkbox-group input[type="checkbox"] {
-            width: 16px;
-            height: 16px;
+            gap: 12px;
           }
           
           @media (max-width: 768px) {
-            .grid-2 {
+            .entity-grid {
               grid-template-columns: 1fr;
-              gap: 12px;
-            }
-            
-            .editor-container {
-              padding: 12px;
-            }
-            
-            .section {
-              padding: 12px;
             }
           }
         </style>
-
-        <!-- 基本配置 -->
-        <div class="section">
-          <div class="section-title">基本配置</div>
-          <div class="form-group">
-            <label class="form-label">卡片标题</label>
-            <input
-              type="text"
-              class="text-input"
-              value="${config.title || '驾驶证和车辆状态'}"
-              placeholder="输入卡片标题"
-              data-path="title"
-            >
-            <div class="help-text">设置卡片显示的主标题</div>
-          </div>
-          <div class="form-group">
-            <div class="checkbox-group">
-              <input
-                type="checkbox"
-                id="show-last-updated"
-                data-path="show_last_updated"
-                ${config.show_last_updated !== false ? 'checked' : ''}
-              >
-              <label class="form-label" for="show-last-updated">显示最后更新时间</label>
-            </div>
-            <div class="help-text">显示数据的最后更新时间</div>
-          </div>
-          <div class="form-group">
-            <label class="form-label">最后更新时间实体</label>
-            <div class="entity-input-container">
-              <input
-                type="text"
-                class="text-input entity-input"
-                value="${config.last_update_entity || ''}"
-                placeholder="输入实体ID，如: sensor.last_update"
-                data-path="last_update_entity"
-              >
-              <button class="search-btn" type="button" data-input="last_update_entity">搜索</button>
-            </div>
-            <div class="help-text">输入实体ID，如: sensor.last_update_time</div>
-          </div>
-        </div>
-
-        <!-- 用户配置 -->
-        <div class="section">
-          <div class="section-title">驾驶证信息配置</div>
-          <div id="users-container">
-            ${this._renderUsers()}
-          </div>
-          <button class="add-btn" id="add-user-btn" type="button">
-            + 添加用户
-          </button>
-        </div>
-
-        <!-- 车辆配置 -->
-        <div class="section">
-          <div class="section-title">车辆信息配置</div>
-          <div id="vehicles-container">
-            ${this._renderVehicles()}
-          </div>
-          <button class="add-btn" id="add-vehicle-btn" type="button">
-            + 添加车辆
-          </button>
-        </div>
-
-        <!-- 使用说明 -->
-        <div class="section">
-          <div class="section-title">使用说明</div>
-          <div style="font-size: 14px; color: var(--secondary-text-color); line-height: 1.6;">
-            <p><strong>实体配置要求：</strong></p>
-            <ul style="margin: 8px 0; padding-left: 16px;">
-              <li><strong>驾驶证有效期</strong>：日期格式传感器 (YYYY-MM-DD)</li>
-              <li><strong>驾驶证状态</strong>：文本状态传感器 (正常/警告/过期)</li>
-              <li><strong>扣分情况</strong>：数字类型传感器</li>
-              <li><strong>车牌号码</strong>：文本类型传感器</li>
-              <li><strong>年审日期</strong>：日期格式传感器 (YYYY-MM-DD)</li>
-              <li><strong>车辆状态</strong>：文本状态传感器 (正常/异常)</li>
-              <li><strong>违章信息</strong>：数字类型传感器</li>
-              <li><strong>最后更新时间</strong>：任何包含时间信息的实体</li>
-            </ul>
-            <p><strong>提示：</strong>点击"搜索"按钮可以从现有实体中选择，支持关键字搜索</p>
-          </div>
-        </div>
       </div>
     `;
 
-    this._bindEvents();
+    this.setupEventListeners();
   }
 
-  _renderUsers() {
-    const users = this._config.users || [this._getDefaultUser()];
+  renderUsers() {
+    const users = this._config.users || [this.getDefaultUser()];
     return users.map((user, index) => `
-      <div class="config-item" data-user-index="${index}">
-        <button class="remove-btn" data-type="user" data-index="${index}" ${users.length <= 1 ? 'disabled' : ''} type="button">
+      <div class="user-config" data-index="${index}">
+        <button class="remove-btn" data-type="user" data-index="${index}" 
+                ${users.length <= 1 ? 'disabled' : ''}>
           删除
         </button>
         
         <div class="form-group">
-          <label class="form-label">用户姓名</label>
-          <input
-            type="text"
-            class="text-input user-name"
-            value="${user.name || ''}"
-            placeholder="请输入用户姓名"
-            data-type="user"
+          <label>用户姓名</label>
+          <input 
+            type="text" 
+            value="${user.name || ''}" 
+            data-type="user" 
             data-index="${index}"
             data-path="name"
+            class="config-input"
+            placeholder="请输入用户姓名"
           >
-          <div class="help-text">驾驶证持有人的姓名（将显示在卡片标题中）</div>
         </div>
         
-        <div class="grid-2">
+        <div class="entity-grid">
           <div class="form-group">
-            <label class="form-label">驾驶证有效期实体</label>
-            <div class="entity-input-container">
-              <input
-                type="text"
-                class="text-input entity-input"
-                value="${user.entities?.license_expiry || ''}"
-                placeholder="输入实体ID，如: sensor.license_expiry"
-                data-type="user"
-                data-index="${index}"
-                data-entity-type="license_expiry"
-              >
-              <button class="search-btn" type="button" data-type="user" data-index="${index}" data-entity-type="license_expiry">搜索</button>
-            </div>
-            <div class="help-text">选择驾驶证有效期实体</div>
+            <label>驾驶证有效期实体</label>
+            <input 
+              type="text" 
+              value="${user.entities?.license_expiry || ''}" 
+              data-type="user" 
+              data-index="${index}"
+              data-path="license_expiry"
+              class="config-input"
+              placeholder="sensor.license_expiry"
+            >
           </div>
           
           <div class="form-group">
-            <label class="form-label">驾驶证状态实体</label>
-            <div class="entity-input-container">
-              <input
-                type="text"
-                class="text-input entity-input"
-                value="${user.entities?.license_status || ''}"
-                placeholder="输入实体ID，如: sensor.license_status"
-                data-type="user"
-                data-index="${index}"
-                data-entity-type="license_status"
-              >
-              <button class="search-btn" type="button" data-type="user" data-index="${index}" data-entity-type="license_status">搜索</button>
-            </div>
-            <div class="help-text">选择驾驶证状态实体</div>
+            <label>驾驶证状态实体</label>
+            <input 
+              type="text" 
+              value="${user.entities?.license_status || ''}" 
+              data-type="user" 
+              data-index="${index}"
+              data-path="license_status"
+              class="config-input"
+              placeholder="sensor.license_status"
+            >
           </div>
           
           <div class="form-group">
-            <label class="form-label">扣分情况实体</label>
-            <div class="entity-input-container">
-              <input
-                type="text"
-                class="text-input entity-input"
-                value="${user.entities?.penalty_points || ''}"
-                placeholder="输入实体ID，如: sensor.penalty_points"
-                data-type="user"
-                data-index="${index}"
-                data-entity-type="penalty_points"
-              >
-              <button class="search-btn" type="button" data-type="user" data-index="${index}" data-entity-type="penalty_points">搜索</button>
-            </div>
-            <div class="help-text">选择扣分情况实体</div>
+            <label>扣分情况实体</label>
+            <input 
+              type="text" 
+              value="${user.entities?.penalty_points || ''}" 
+              data-type="user" 
+              data-index="${index}"
+              data-path="penalty_points"
+              class="config-input"
+              placeholder="sensor.penalty_points"
+            >
           </div>
         </div>
       </div>
     `).join('');
   }
 
-  _renderVehicles() {
-    const vehicles = this._config.vehicles || [this._getDefaultVehicle()];
+  renderVehicles() {
+    const vehicles = this._config.vehicles || [this.getDefaultVehicle()];
     return vehicles.map((vehicle, index) => `
-      <div class="config-item" data-vehicle-index="${index}">
-        <button class="remove-btn" data-type="vehicle" data-index="${index}" ${vehicles.length <= 1 ? 'disabled' : ''} type="button">
+      <div class="vehicle-config" data-index="${index}">
+        <button class="remove-btn" data-type="vehicle" data-index="${index}"
+                ${vehicles.length <= 1 ? 'disabled' : ''}>
           删除
         </button>
         
         <div class="form-group">
-          <label class="form-label">车牌号码实体</label>
-          <div class="entity-input-container">
-            <input
-              type="text"
-              class="text-input entity-input"
-              value="${vehicle.plate_entity || ''}"
-              placeholder="输入实体ID，如: sensor.car_plate"
-              data-type="vehicle"
-              data-index="${index}"
-              data-entity-type="plate_entity"
-            >
-            <button class="search-btn" type="button" data-type="vehicle" data-index="${index}" data-entity-type="plate_entity">搜索</button>
-          </div>
-          <div class="help-text">选择包含车牌号码的传感器实体</div>
+          <label>车牌号码实体</label>
+          <input 
+            type="text" 
+            value="${vehicle.plate_entity || ''}" 
+            data-type="vehicle" 
+            data-index="${index}"
+            data-path="plate_entity"
+            class="config-input"
+            placeholder="sensor.car_plate"
+          >
         </div>
         
-        <div class="grid-2">
+        <div class="entity-grid">
           <div class="form-group">
-            <label class="form-label">年审日期实体</label>
-            <div class="entity-input-container">
-              <input
-                type="text"
-                class="text-input entity-input"
-                value="${vehicle.entities?.inspection_date || ''}"
-                placeholder="输入实体ID，如: sensor.inspection_date"
-                data-type="vehicle"
-                data-index="${index}"
-                data-entity-type="inspection_date"
-              >
-              <button class="search-btn" type="button" data-type="vehicle" data-index="${index}" data-entity-type="inspection_date">搜索</button>
-            </div>
-            <div class="help-text">选择年审日期实体</div>
+            <label>年审日期实体</label>
+            <input 
+              type="text" 
+              value="${vehicle.entities?.inspection_date || ''}" 
+              data-type="vehicle" 
+              data-index="${index}"
+              data-path="inspection_date"
+              class="config-input"
+              placeholder="sensor.inspection_date"
+            >
           </div>
           
           <div class="form-group">
-            <label class="form-label">车辆状态实体</label>
-            <div class="entity-input-container">
-              <input
-                type="text"
-                class="text-input entity-input"
-                value="${vehicle.entities?.vehicle_status || ''}"
-                placeholder="输入实体ID，如: sensor.vehicle_status"
-                data-type="vehicle"
-                data-index="${index}"
-                data-entity-type="vehicle_status"
-              >
-              <button class="search-btn" type="button" data-type="vehicle" data-index="${index}" data-entity-type="vehicle_status">搜索</button>
-            </div>
-            <div class="help-text">选择车辆状态实体</div>
+            <label>车辆状态实体</label>
+            <input 
+              type="text" 
+              value="${vehicle.entities?.vehicle_status || ''}" 
+              data-type="vehicle" 
+              data-index="${index}"
+              data-path="vehicle_status"
+              class="config-input"
+              placeholder="sensor.vehicle_status"
+            >
           </div>
           
           <div class="form-group">
-            <label class="form-label">违章信息实体</label>
-            <div class="entity-input-container">
-              <input
-                type="text"
-                class="text-input entity-input"
-                value="${vehicle.entities?.violations || ''}"
-                placeholder="输入实体ID，如: sensor.violations"
-                data-type="vehicle"
-                data-index="${index}"
-                data-entity-type="violations"
-              >
-              <button class="search-btn" type="button" data-type="vehicle" data-index="${index}" data-entity-type="violations">搜索</button>
-            </div>
-            <div class="help-text">选择违章信息实体</div>
+            <label>违章信息实体</label>
+            <input 
+              type="text" 
+              value="${vehicle.entities?.violations || ''}" 
+              data-type="vehicle" 
+              data-index="${index}"
+              data-path="violations"
+              class="config-input"
+              placeholder="sensor.violations"
+            >
           </div>
         </div>
       </div>
     `).join('');
   }
 
-  _getDefaultUser() {
+  getDefaultUser() {
     return {
       name: '新用户',
       entities: {
@@ -952,7 +762,7 @@ class DrivingLicenseEditor extends HTMLElement {
     };
   }
 
-  _getDefaultVehicle() {
+  getDefaultVehicle() {
     return {
       plate_entity: '',
       entities: {
@@ -963,352 +773,123 @@ class DrivingLicenseEditor extends HTMLElement {
     };
   }
 
-  _bindEvents() {
-    // 清除所有现有事件监听器
-    this._removeAllEventListeners();
-    
-    // 重新绑定事件
-    this._setupInputHandlers();
-    
-    // 绑定搜索按钮事件
-    this.querySelectorAll('.search-btn').forEach(btn => {
+  setupEventListeners() {
+    // 输入框事件
+    this.querySelectorAll('input').forEach(input => {
+      input.addEventListener('input', (e) => {
+        this.handleInputChange(e.target);
+      });
+    });
+
+    // 复选框事件
+    this.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+      checkbox.addEventListener('change', (e) => {
+        this.handleInputChange(e.target);
+      });
+    });
+
+    // 删除按钮事件
+    this.querySelectorAll('.remove-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
-        this._showEntitySearch(e.target);
+        const type = e.target.dataset.type;
+        const index = parseInt(e.target.dataset.index);
+        this.removeItem(type, index);
       });
     });
 
-    // 绑定复选框事件
-    this.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
-      checkbox.addEventListener('change', (e) => {
-        const target = e.target;
-        const path = target.getAttribute('data-path');
-        this._updateConfig(path, target.checked);
-      });
+    // 添加按钮事件
+    this.querySelector('#add-user').addEventListener('click', () => {
+      this.addUser();
     });
 
-    // 修复：使用事件委托来绑定删除按钮事件
-    this.addEventListener('click', (e) => {
-      if (e.target.classList.contains('remove-btn')) {
-        const type = e.target.getAttribute('data-type');
-        const index = parseInt(e.target.getAttribute('data-index'));
-        
-        if (type === 'user') {
-          this._removeUser(index);
-        } else if (type === 'vehicle') {
-          this._removeVehicle(index);
-        }
-      }
-    });
-
-    // 绑定添加按钮事件
-    this.querySelector('#add-user-btn').addEventListener('click', () => {
-      this._addUser();
-    });
-    
-    this.querySelector('#add-vehicle-btn').addEventListener('click', () => {
-      this._addVehicle();
-    });
-
-    // 点击其他地方关闭下拉框
-    document.addEventListener('click', () => {
-      this._closeAllDropdowns();
+    this.querySelector('#add-vehicle').addEventListener('click', () => {
+      this.addVehicle();
     });
   }
 
-  _removeAllEventListeners() {
-    // 克隆并替换元素来移除所有事件监听器
-    const newElement = this.cloneNode(true);
-    this.parentNode.replaceChild(newElement, this);
-  }
+  handleInputChange(target) {
+    const path = target.dataset.path;
+    const type = target.dataset.type;
+    const index = target.dataset.index;
 
-  _showEntitySearch(button) {
-    this._closeAllDropdowns();
-
-    const type = button.getAttribute('data-type');
-    const index = button.getAttribute('data-index');
-    const entityType = button.getAttribute('data-entity-type');
-
-    const input = button.previousElementSibling;
-    const container = button.parentElement;
-
-    const entities = this._getAllEntities();
-    
-    const dropdown = document.createElement('div');
-    dropdown.className = 'entity-dropdown';
-    
-    const searchHeader = document.createElement('div');
-    searchHeader.className = 'search-header';
-    searchHeader.innerHTML = `
-      <input 
-        type="text" 
-        class="search-input" 
-        placeholder="输入关键字搜索实体..." 
-        value="${this._searchKeyword || ''}"
-      >
-      <div class="help-text" style="margin-top: 4px; font-size: 11px;">支持按实体ID或状态搜索</div>
-    `;
-    dropdown.appendChild(searchHeader);
-
-    const resultsContainer = document.createElement('div');
-    dropdown.appendChild(resultsContainer);
-
-    this._updateSearchResults(resultsContainer, entities, entityType, this._searchKeyword);
-
-    const searchInput = searchHeader.querySelector('.search-input');
-    searchInput.addEventListener('input', (e) => {
-      this._searchKeyword = e.target.value;
-      this._updateSearchResults(resultsContainer, entities, entityType, this._searchKeyword);
-    });
-
-    searchInput.addEventListener('click', (e) => {
-      e.stopPropagation();
-    });
-
-    searchInput.focus();
-
-    container.appendChild(dropdown);
-  }
-
-  _updateSearchResults(container, entities, entityType, keyword = '') {
-    let filteredEntities = this._filterEntitiesByType(entities, entityType);
-    
-    if (keyword) {
-      const lowerKeyword = keyword.toLowerCase();
-      filteredEntities = filteredEntities.filter(entity => 
-        entity.entity_id.toLowerCase().includes(lowerKeyword) ||
-        (entity.state && entity.state.toLowerCase().includes(lowerKeyword)) ||
-        (entity.attributes && entity.attributes.friendly_name && 
-         entity.attributes.friendly_name.toLowerCase().includes(lowerKeyword))
-      );
-    }
-
-    if (filteredEntities.length === 0) {
-      container.innerHTML = '<div class="entity-option">未找到匹配的实体</div>';
-    } else {
-      container.innerHTML = '';
-      filteredEntities.slice(0, 50).forEach(entity => {
-        const option = document.createElement('div');
-        option.className = 'entity-option';
-        const friendlyName = entity.attributes?.friendly_name || '';
-        option.innerHTML = `
-          <div>
-            <span class="entity-id">${entity.entity_id}</span>
-            ${friendlyName ? `<div style="font-size: 12px; color: var(--secondary-text-color);">${friendlyName}</div>` : ''}
-          </div>
-          <span class="entity-state">${entity.state}</span>
-        `;
-        option.addEventListener('click', () => {
-          const input = option.closest('.entity-input-container').querySelector('.entity-input');
-          input.value = entity.entity_id;
-          this._handleInputUpdate(input);
-          dropdown.remove();
-        });
-        container.appendChild(option);
-      });
-    }
-  }
-
-  _getAllEntities() {
-    if (!this._hass) return [];
-    
-    return Object.entries(this._hass.states).map(([entity_id, state]) => ({
-      entity_id,
-      state: state.state,
-      attributes: state.attributes
-    }));
-  }
-
-  _filterEntitiesByType(entities, entityType) {
-    let filteredEntities = entities;
-    
-    switch (entityType) {
-      case 'license_expiry':
-      case 'inspection_date':
-        filteredEntities = entities.filter(entity => 
-          entity.entity_id.includes('date') || 
-          entity.entity_id.includes('expiry') ||
-          entity.entity_id.includes('inspection') ||
-          entity.entity_id.includes('renew') ||
-          entity.entity_id.includes('valid') ||
-          entity.entity_id.includes('deadline')
-        );
-        break;
-        
-      case 'license_status':
-      case 'vehicle_status':
-        filteredEntities = entities.filter(entity => 
-          entity.entity_id.includes('status') || 
-          entity.entity_id.includes('state') ||
-          entity.entity_id.includes('condition')
-        );
-        break;
-        
-      case 'penalty_points':
-      case 'violations':
-        filteredEntities = entities.filter(entity => 
-          entity.entity_id.includes('point') || 
-          entity.entity_id.includes('violation') ||
-          entity.entity_id.includes('penalty') ||
-          entity.entity_id.includes('deduct') ||
-          entity.entity_id.includes('score')
-        );
-        break;
-        
-      case 'plate_entity':
-        filteredEntities = entities.filter(entity => 
-          entity.entity_id.includes('plate') || 
-          entity.entity_id.includes('car') ||
-          entity.entity_id.includes('vehicle') ||
-          entity.entity_id.includes('license_plate') ||
-          entity.entity_id.includes('number_plate')
-        );
-        break;
-        
-      case 'last_update_entity':
-        filteredEntities = entities.filter(entity => 
-          entity.entity_id.includes('update') || 
-          entity.entity_id.includes('time') ||
-          entity.entity_id.includes('last') ||
-          entity.entity_id.includes('refresh')
-        );
-        break;
-        
-      default:
-        filteredEntities = entities;
-    }
-
-    return filteredEntities;
-  }
-
-  _closeAllDropdowns() {
-    this.querySelectorAll('.entity-dropdown').forEach(dropdown => {
-      dropdown.remove();
-    });
-    this._searchKeyword = '';
-  }
-
-  _setupInputHandlers() {
-    const setupInputHandler = (input) => {
-      input.addEventListener('blur', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        this._handleInputUpdate(e.target);
-      });
-      
-      input.addEventListener('input', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        
-        if (this._inputTimeout) {
-          clearTimeout(this._inputTimeout);
-        }
-        
-        this._inputTimeout = setTimeout(() => {
-          this._handleInputUpdate(e.target);
-        }, 500);
-      });
-      
-      const stopPropagation = (e) => {
-        e.stopPropagation();
-      };
-      
-      input.addEventListener('keydown', stopPropagation);
-      input.addEventListener('keyup', stopPropagation);
-      input.addEventListener('keypress', stopPropagation);
-    };
-
-    this.querySelectorAll('input[type="text"]').forEach(setupInputHandler);
-  }
-
-  _handleInputUpdate(target) {
-    const path = target.getAttribute('data-path');
-    const type = target.getAttribute('data-type');
-    const index = target.getAttribute('data-index');
-    const entityType = target.getAttribute('data-entity-type');
+    let value = target.type === 'checkbox' ? target.checked : target.value;
 
     if (type === 'user') {
-      if (path === 'name') {
-        this._updateUserField(parseInt(index), 'name', target.value);
-      } else if (entityType) {
-        this._updateUserField(parseInt(index), `entities.${entityType}`, target.value);
-      }
+      this.updateUserField(parseInt(index), path, value);
     } else if (type === 'vehicle') {
-      if (entityType === 'plate_entity') {
-        this._updateVehicleField(parseInt(index), 'plate_entity', target.value);
-      } else if (entityType) {
-        this._updateVehicleField(parseInt(index), `entities.${entityType}`, target.value);
-      }
+      this.updateVehicleField(parseInt(index), path, value);
     } else {
-      this._updateConfig(path, target.value);
+      this.updateConfig(path, value);
     }
   }
 
-  _addUser() {
-    if (!this._config.users) this._config.users = [];
-    this._config.users.push(this._getDefaultUser());
-    this._fireEvent();
-  }
-
-  _addVehicle() {
-    if (!this._config.vehicles) this._config.vehicles = [];
-    this._config.vehicles.push(this._getDefaultVehicle());
-    this._fireEvent();
-  }
-
-  _removeUser(index) {
-    if (!this._config.users || this._config.users.length <= 1) return;
-    this._config.users.splice(index, 1);
-    this._fireEvent();
-  }
-
-  _removeVehicle(index) {
-    if (!this._config.vehicles || this._config.vehicles.length <= 1) return;
-    this._config.vehicles.splice(index, 1);
-    this._fireEvent();
-  }
-
-  _updateConfig(key, value) {
+  updateConfig(key, value) {
+    if (!this._config) this._config = {};
     this._config[key] = value;
-    this._fireEvent();
+    this.fireConfigChanged();
   }
 
-  _updateUserField(index, field, value) {
-    if (!this._config.users) this._config.users = [this._getDefaultUser()];
+  updateUserField(index, field, value) {
+    if (!this._config.users) this._config.users = [this.getDefaultUser()];
     if (!this._config.users[index]) return;
 
     if (field === 'name') {
       this._config.users[index].name = value;
-    } else if (field.startsWith('entities.')) {
-      const entityField = field.replace('entities.', '');
+    } else {
       if (!this._config.users[index].entities) {
         this._config.users[index].entities = {};
       }
-      this._config.users[index].entities[entityField] = value;
+      this._config.users[index].entities[field] = value;
     }
 
-    this._fireEvent();
+    this.fireConfigChanged();
   }
 
-  _updateVehicleField(index, field, value) {
-    if (!this._config.vehicles) this._config.vehicles = [this._getDefaultVehicle()];
+  updateVehicleField(index, field, value) {
+    if (!this._config.vehicles) this._config.vehicles = [this.getDefaultVehicle()];
     if (!this._config.vehicles[index]) return;
 
     if (field === 'plate_entity') {
       this._config.vehicles[index].plate_entity = value;
-    } else if (field.startsWith('entities.')) {
-      const entityField = field.replace('entities.', '');
+    } else {
       if (!this._config.vehicles[index].entities) {
         this._config.vehicles[index].entities = {};
       }
-      this._config.vehicles[index].entities[entityField] = value;
+      this._config.vehicles[index].entities[field] = value;
     }
 
-    this._fireEvent();
+    this.fireConfigChanged();
   }
 
-  _fireEvent() {
+  addUser() {
+    if (!this._config.users) this._config.users = [];
+    this._config.users.push(this.getDefaultUser());
+    this.render();
+  }
+
+  addVehicle() {
+    if (!this._config.vehicles) this._config.vehicles = [];
+    this._config.vehicles.push(this.getDefaultVehicle());
+    this.render();
+  }
+
+  removeItem(type, index) {
+    if (type === 'user') {
+      if (this._config.users && this._config.users.length > 1) {
+        this._config.users.splice(index, 1);
+        this.render();
+      }
+    } else if (type === 'vehicle') {
+      if (this._config.vehicles && this._config.vehicles.length > 1) {
+        this._config.vehicles.splice(index, 1);
+        this.render();
+      }
+    }
+  }
+
+  fireConfigChanged() {
     const event = new Event('config-changed', {
       bubbles: true,
       composed: true
@@ -1318,7 +899,7 @@ class DrivingLicenseEditor extends HTMLElement {
   }
 }
 
-// 注册卡片和编辑器
+// 注册自定义元素
 if (!customElements.get('driving-license-card')) {
   customElements.define('driving-license-card', DrivingLicenseCard);
 }
@@ -1332,8 +913,7 @@ window.customCards.push({
   type: 'driving-license-card',
   name: 'Driving License Card',
   description: 'A card to display driving license and vehicle status information',
-  preview: true,
-  documentationURL: 'https://github.com/B361273068/ha-driving-license-card'
+  preview: true
 });
 
-console.log('Driving License Card with fixed delete functionality loaded successfully');
+console.log('Driving License Card loaded successfully');
