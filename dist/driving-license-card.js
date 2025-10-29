@@ -67,7 +67,6 @@ class DrivingLicenseCard extends HTMLElement {
   }
 
   fixUsersConfig(usersConfig) {
-    // 如果users配置不存在或为空，返回默认配置
     if (!usersConfig || (Array.isArray(usersConfig) && usersConfig.length === 0)) {
       return [{
         name: '请配置姓名',
@@ -79,7 +78,6 @@ class DrivingLicenseCard extends HTMLElement {
       }];
     }
 
-    // 如果users是数组，修复每个用户的配置
     if (Array.isArray(usersConfig)) {
       return usersConfig.map(user => ({
         name: user.name || '未命名用户',
@@ -91,7 +89,6 @@ class DrivingLicenseCard extends HTMLElement {
       }));
     }
 
-    // 如果users是对象，转换为数组
     if (typeof usersConfig === 'object') {
       return [{
         name: usersConfig.name || '未命名用户',
@@ -103,7 +100,6 @@ class DrivingLicenseCard extends HTMLElement {
       }];
     }
 
-    // 默认返回
     return [{
       name: '请配置姓名',
       entities: {
@@ -115,7 +111,6 @@ class DrivingLicenseCard extends HTMLElement {
   }
 
   fixVehiclesConfig(vehiclesConfig) {
-    // 如果vehicles配置不存在或为空，返回默认配置
     if (!vehiclesConfig || (Array.isArray(vehiclesConfig) && vehiclesConfig.length === 0)) {
       return [{
         plate_entity: '',
@@ -127,7 +122,6 @@ class DrivingLicenseCard extends HTMLElement {
       }];
     }
 
-    // 如果vehicles是数组，修复每个车辆的配置
     if (Array.isArray(vehiclesConfig)) {
       return vehiclesConfig.map(vehicle => ({
         plate_entity: vehicle.plate_entity || '',
@@ -139,7 +133,6 @@ class DrivingLicenseCard extends HTMLElement {
       }));
     }
 
-    // 如果vehicles是对象，转换为数组
     if (typeof vehiclesConfig === 'object') {
       return [{
         plate_entity: vehiclesConfig.plate_entity || '',
@@ -151,7 +144,6 @@ class DrivingLicenseCard extends HTMLElement {
       }];
     }
 
-    // 默认返回
     return [{
       plate_entity: '',
       entities: {
@@ -474,18 +466,20 @@ class DrivingLicenseCard extends HTMLElement {
   }
 }
 
-// 修复编辑器类 - 使用防抖和优化渲染
+// 完全重写编辑器类 - 使用更简单的方法避免重新渲染
 class DrivingLicenseEditor extends HTMLElement {
   constructor() {
     super();
     this._config = null;
-    this._inputTimeouts = new Map(); // 用于存储输入超时
-    this._activeInput = null; // 当前活动的输入框
+    this._hasRendered = false;
   }
 
   setConfig(config) {
     this._config = config || this.getDefaultConfig();
-    this.render();
+    if (!this._hasRendered) {
+      this.render();
+      this._hasRendered = true;
+    }
   }
 
   getDefaultConfig() {
@@ -515,9 +509,6 @@ class DrivingLicenseEditor extends HTMLElement {
   render() {
     const config = this._config;
     
-    // 保存当前活动输入框的值和焦点状态
-    const activeInputData = this.saveActiveInputState();
-    
     this.innerHTML = `
       <div class="card-config">
         <div class="config-section">
@@ -530,7 +521,6 @@ class DrivingLicenseEditor extends HTMLElement {
               value="${config.title || '驾驶证和车辆状态'}" 
               data-path="title"
               class="config-input"
-              data-input-id="title"
             >
           </div>
           
@@ -540,7 +530,6 @@ class DrivingLicenseEditor extends HTMLElement {
                 type="checkbox" 
                 ${config.show_last_updated !== false ? 'checked' : ''}
                 data-path="show_last_updated"
-                data-input-id="show_last_updated"
               >
               显示最后更新时间
             </label>
@@ -554,7 +543,6 @@ class DrivingLicenseEditor extends HTMLElement {
               data-path="last_update_entity"
               class="config-input"
               placeholder="sensor.last_update_time"
-              data-input-id="last_update_entity"
             >
           </div>
         </div>
@@ -605,36 +593,43 @@ class DrivingLicenseEditor extends HTMLElement {
             display: block;
             margin-bottom: 8px;
             font-weight: 500;
+            color: var(--primary-text-color);
           }
           
           .config-input {
             width: 100%;
-            padding: 8px 12px;
+            padding: 10px 12px;
             border: 1px solid var(--divider-color);
             border-radius: 4px;
             background: var(--card-background-color);
             color: var(--primary-text-color);
             box-sizing: border-box;
             font-size: 14px;
+            font-family: inherit;
           }
           
           .config-input:focus {
             outline: none;
             border-color: var(--primary-color);
-            box-shadow: 0 0 0 2px rgba(var(--primary-color), 0.2);
+          }
+          
+          .checkbox-group {
+            display: flex;
+            align-items: center;
           }
           
           .checkbox-group label {
             display: flex;
             align-items: center;
             gap: 8px;
+            margin-bottom: 0;
             cursor: pointer;
           }
           
           .checkbox-group input[type="checkbox"] {
             width: 16px;
             height: 16px;
-            cursor: pointer;
+            margin: 0;
           }
           
           .user-config, .vehicle-config {
@@ -696,9 +691,6 @@ class DrivingLicenseEditor extends HTMLElement {
     `;
 
     this.setupEventListeners();
-    
-    // 恢复活动输入框的状态
-    this.restoreActiveInputState(activeInputData);
   }
 
   renderUsers() {
@@ -724,7 +716,6 @@ class DrivingLicenseEditor extends HTMLElement {
             data-path="name"
             class="config-input"
             placeholder="请输入用户姓名"
-            data-input-id="user-${index}-name"
           >
         </div>
         
@@ -739,7 +730,6 @@ class DrivingLicenseEditor extends HTMLElement {
               data-path="license_expiry"
               class="config-input"
               placeholder="sensor.license_expiry"
-              data-input-id="user-${index}-license_expiry"
             >
           </div>
           
@@ -753,7 +743,6 @@ class DrivingLicenseEditor extends HTMLElement {
               data-path="license_status"
               class="config-input"
               placeholder="sensor.license_status"
-              data-input-id="user-${index}-license_status"
             >
           </div>
           
@@ -767,7 +756,6 @@ class DrivingLicenseEditor extends HTMLElement {
               data-path="penalty_points"
               class="config-input"
               placeholder="sensor.penalty_points"
-              data-input-id="user-${index}-penalty_points"
             >
           </div>
         </div>
@@ -798,7 +786,6 @@ class DrivingLicenseEditor extends HTMLElement {
             data-path="plate_entity"
             class="config-input"
             placeholder="sensor.car_plate"
-            data-input-id="vehicle-${index}-plate_entity"
           >
         </div>
         
@@ -813,7 +800,6 @@ class DrivingLicenseEditor extends HTMLElement {
               data-path="inspection_date"
               class="config-input"
               placeholder="sensor.inspection_date"
-              data-input-id="vehicle-${index}-inspection_date"
             >
           </div>
           
@@ -827,7 +813,6 @@ class DrivingLicenseEditor extends HTMLElement {
               data-path="vehicle_status"
               class="config-input"
               placeholder="sensor.vehicle_status"
-              data-input-id="vehicle-${index}-vehicle_status"
             >
           </div>
           
@@ -841,7 +826,6 @@ class DrivingLicenseEditor extends HTMLElement {
               data-path="violations"
               class="config-input"
               placeholder="sensor.violations"
-              data-input-id="vehicle-${index}-violations"
             >
           </div>
         </div>
@@ -849,61 +833,18 @@ class DrivingLicenseEditor extends HTMLElement {
     `).join('');
   }
 
-  saveActiveInputState() {
-    if (!this._activeInput) return null;
-    
-    const input = this._activeInput;
-    return {
-      inputId: input.getAttribute('data-input-id'),
-      value: input.value,
-      selectionStart: input.selectionStart,
-      selectionEnd: input.selectionEnd
-    };
-  }
-
-  restoreActiveInputState(activeInputData) {
-    if (!activeInputData) return;
-    
-    const input = this.querySelector(`[data-input-id="${activeInputData.inputId}"]`);
-    if (input) {
-      input.value = activeInputData.value;
-      input.focus();
-      input.setSelectionRange(activeInputData.selectionStart, activeInputData.selectionEnd);
-      this._activeInput = input;
-    }
-  }
-
   setupEventListeners() {
-    // 输入框事件 - 使用防抖
-    this.querySelectorAll('input').forEach(input => {
-      // 保存当前活动输入框
-      input.addEventListener('focus', (e) => {
-        this._activeInput = e.target;
-      });
-      
+    // 输入框事件 - 只在失去焦点时更新
+    this.querySelectorAll('input[type="text"]').forEach(input => {
       input.addEventListener('blur', (e) => {
-        if (this._activeInput === e.target) {
-          this._activeInput = null;
-        }
+        this.handleInputChange(e.target);
       });
       
-      // 输入事件使用防抖
-      input.addEventListener('input', (e) => {
-        const target = e.target;
-        const inputId = target.getAttribute('data-input-id');
-        
-        // 清除之前的超时
-        if (this._inputTimeouts.has(inputId)) {
-          clearTimeout(this._inputTimeouts.get(inputId));
+      // 可选：按回车键时也更新
+      input.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+          e.target.blur();
         }
-        
-        // 设置新的超时
-        const timeout = setTimeout(() => {
-          this.handleInputChange(target);
-          this._inputTimeouts.delete(inputId);
-        }, 500); // 500ms 防抖延迟
-        
-        this._inputTimeouts.set(inputId, timeout);
       });
     });
 
@@ -952,7 +893,6 @@ class DrivingLicenseEditor extends HTMLElement {
       this.updateConfig(path, value);
     }
     
-    // 不重新渲染，只更新配置
     this.fireConfigChanged();
   }
 
@@ -1039,4 +979,4 @@ window.customCards.push({
   preview: true
 });
 
-console.log('Driving License Card with fixed input focus issue loaded successfully');
+console.log('Driving License Card with fixed Chinese input issue loaded successfully');
