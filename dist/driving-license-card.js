@@ -1,4 +1,4 @@
-// 主卡片类 - 修复驾驶员姓名显示和标题颜色
+// 主卡片类保持不变
 class DrivingLicenseCard extends HTMLElement {
   constructor() {
     super();
@@ -178,7 +178,6 @@ class DrivingLicenseCard extends HTMLElement {
         const pointsInfo = this.getPointsInfo(pointsEntity?.state);
         const countdownInfo = this.getCountdownInfo(expiryDays);
         
-        // 修复1：修改标题格式为"驾驶证信息-张三"
         const sectionTitle = user.name ? `驾驶证信息-${user.name}` : '驾驶证信息';
         
         return `
@@ -331,7 +330,7 @@ class DrivingLicenseCard extends HTMLElement {
         .info-label {
           font-size: 14px;
           font-weight: 500;
-          color: #000000 !important; /* 强制黑色 */
+          color: #000000 !important;
         }
         
         .info-value {
@@ -339,7 +338,6 @@ class DrivingLicenseCard extends HTMLElement {
           font-weight: 600;
         }
         
-        /* 颜色样式 */
         .green {
           color: var(--success-color, #4CAF50);
         }
@@ -442,7 +440,7 @@ class DrivingLicenseCard extends HTMLElement {
   }
 }
 
-// 完整的编辑器类
+// 修复删除功能的编辑器类
 class DrivingLicenseEditor extends HTMLElement {
   constructor() {
     super();
@@ -787,8 +785,8 @@ class DrivingLicenseEditor extends HTMLElement {
   _renderUsers() {
     const users = this._config.users || [this._getDefaultUser()];
     return users.map((user, index) => `
-      <div class="config-item">
-        <button class="remove-btn" data-user-index="${index}" ${users.length <= 1 ? 'disabled' : ''} type="button">
+      <div class="config-item" data-user-index="${index}">
+        <button class="remove-btn" data-type="user" data-index="${index}" ${users.length <= 1 ? 'disabled' : ''} type="button">
           删除
         </button>
         
@@ -799,7 +797,8 @@ class DrivingLicenseEditor extends HTMLElement {
             class="text-input user-name"
             value="${user.name || ''}"
             placeholder="请输入用户姓名"
-            data-user-index="${index}"
+            data-type="user"
+            data-index="${index}"
             data-path="name"
           >
           <div class="help-text">驾驶证持有人的姓名（将显示在卡片标题中）</div>
@@ -814,10 +813,11 @@ class DrivingLicenseEditor extends HTMLElement {
                 class="text-input entity-input"
                 value="${user.entities?.license_expiry || ''}"
                 placeholder="输入实体ID，如: sensor.license_expiry"
-                data-user-index="${index}"
+                data-type="user"
+                data-index="${index}"
                 data-entity-type="license_expiry"
               >
-              <button class="search-btn" type="button" data-user-index="${index}" data-entity-type="license_expiry">搜索</button>
+              <button class="search-btn" type="button" data-type="user" data-index="${index}" data-entity-type="license_expiry">搜索</button>
             </div>
             <div class="help-text">选择驾驶证有效期实体</div>
           </div>
@@ -830,10 +830,11 @@ class DrivingLicenseEditor extends HTMLElement {
                 class="text-input entity-input"
                 value="${user.entities?.license_status || ''}"
                 placeholder="输入实体ID，如: sensor.license_status"
-                data-user-index="${index}"
+                data-type="user"
+                data-index="${index}"
                 data-entity-type="license_status"
               >
-              <button class="search-btn" type="button" data-user-index="${index}" data-entity-type="license_status">搜索</button>
+              <button class="search-btn" type="button" data-type="user" data-index="${index}" data-entity-type="license_status">搜索</button>
             </div>
             <div class="help-text">选择驾驶证状态实体</div>
           </div>
@@ -846,10 +847,11 @@ class DrivingLicenseEditor extends HTMLElement {
                 class="text-input entity-input"
                 value="${user.entities?.penalty_points || ''}"
                 placeholder="输入实体ID，如: sensor.penalty_points"
-                data-user-index="${index}"
+                data-type="user"
+                data-index="${index}"
                 data-entity-type="penalty_points"
               >
-              <button class="search-btn" type="button" data-user-index="${index}" data-entity-type="penalty_points">搜索</button>
+              <button class="search-btn" type="button" data-type="user" data-index="${index}" data-entity-type="penalty_points">搜索</button>
             </div>
             <div class="help-text">选择扣分情况实体</div>
           </div>
@@ -861,8 +863,8 @@ class DrivingLicenseEditor extends HTMLElement {
   _renderVehicles() {
     const vehicles = this._config.vehicles || [this._getDefaultVehicle()];
     return vehicles.map((vehicle, index) => `
-      <div class="config-item">
-        <button class="remove-btn" data-vehicle-index="${index}" ${vehicles.length <= 1 ? 'disabled' : ''} type="button">
+      <div class="config-item" data-vehicle-index="${index}">
+        <button class="remove-btn" data-type="vehicle" data-index="${index}" ${vehicles.length <= 1 ? 'disabled' : ''} type="button">
           删除
         </button>
         
@@ -874,10 +876,11 @@ class DrivingLicenseEditor extends HTMLElement {
               class="text-input entity-input"
               value="${vehicle.plate_entity || ''}"
               placeholder="输入实体ID，如: sensor.car_plate"
-              data-vehicle-index="${index}"
+              data-type="vehicle"
+              data-index="${index}"
               data-entity-type="plate_entity"
             >
-            <button class="search-btn" type="button" data-vehicle-index="${index}" data-entity-type="plate_entity">搜索</button>
+            <button class="search-btn" type="button" data-type="vehicle" data-index="${index}" data-entity-type="plate_entity">搜索</button>
           </div>
           <div class="help-text">选择包含车牌号码的传感器实体</div>
         </div>
@@ -891,10 +894,11 @@ class DrivingLicenseEditor extends HTMLElement {
                 class="text-input entity-input"
                 value="${vehicle.entities?.inspection_date || ''}"
                 placeholder="输入实体ID，如: sensor.inspection_date"
-                data-vehicle-index="${index}"
+                data-type="vehicle"
+                data-index="${index}"
                 data-entity-type="inspection_date"
               >
-              <button class="search-btn" type="button" data-vehicle-index="${index}" data-entity-type="inspection_date">搜索</button>
+              <button class="search-btn" type="button" data-type="vehicle" data-index="${index}" data-entity-type="inspection_date">搜索</button>
             </div>
             <div class="help-text">选择年审日期实体</div>
           </div>
@@ -907,10 +911,11 @@ class DrivingLicenseEditor extends HTMLElement {
                 class="text-input entity-input"
                 value="${vehicle.entities?.vehicle_status || ''}"
                 placeholder="输入实体ID，如: sensor.vehicle_status"
-                data-vehicle-index="${index}"
+                data-type="vehicle"
+                data-index="${index}"
                 data-entity-type="vehicle_status"
               >
-              <button class="search-btn" type="button" data-vehicle-index="${index}" data-entity-type="vehicle_status">搜索</button>
+              <button class="search-btn" type="button" data-type="vehicle" data-index="${index}" data-entity-type="vehicle_status">搜索</button>
             </div>
             <div class="help-text">选择车辆状态实体</div>
           </div>
@@ -923,10 +928,11 @@ class DrivingLicenseEditor extends HTMLElement {
                 class="text-input entity-input"
                 value="${vehicle.entities?.violations || ''}"
                 placeholder="输入实体ID，如: sensor.violations"
-                data-vehicle-index="${index}"
+                data-type="vehicle"
+                data-index="${index}"
                 data-entity-type="violations"
               >
-              <button class="search-btn" type="button" data-vehicle-index="${index}" data-entity-type="violations">搜索</button>
+              <button class="search-btn" type="button" data-type="vehicle" data-index="${index}" data-entity-type="violations">搜索</button>
             </div>
             <div class="help-text">选择违章信息实体</div>
           </div>
@@ -958,8 +964,13 @@ class DrivingLicenseEditor extends HTMLElement {
   }
 
   _bindEvents() {
+    // 清除所有现有事件监听器
+    this._removeAllEventListeners();
+    
+    // 重新绑定事件
     this._setupInputHandlers();
     
+    // 绑定搜索按钮事件
     this.querySelectorAll('.search-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
         e.preventDefault();
@@ -968,6 +979,7 @@ class DrivingLicenseEditor extends HTMLElement {
       });
     });
 
+    // 绑定复选框事件
     this.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
       checkbox.addEventListener('change', (e) => {
         const target = e.target;
@@ -976,39 +988,47 @@ class DrivingLicenseEditor extends HTMLElement {
       });
     });
 
-    this.querySelectorAll('.remove-btn[data-user-index]').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        const userIndex = parseInt(e.target.getAttribute('data-user-index'));
-        this._removeUser(userIndex);
-      });
+    // 修复：使用事件委托来绑定删除按钮事件
+    this.addEventListener('click', (e) => {
+      if (e.target.classList.contains('remove-btn')) {
+        const type = e.target.getAttribute('data-type');
+        const index = parseInt(e.target.getAttribute('data-index'));
+        
+        if (type === 'user') {
+          this._removeUser(index);
+        } else if (type === 'vehicle') {
+          this._removeVehicle(index);
+        }
+      }
     });
 
-    this.querySelectorAll('.remove-btn[data-vehicle-index]').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        const vehicleIndex = parseInt(e.target.getAttribute('data-vehicle-index'));
-        this._removeVehicle(vehicleIndex);
-      });
-    });
-
+    // 绑定添加按钮事件
     this.querySelector('#add-user-btn').addEventListener('click', () => {
       this._addUser();
     });
+    
     this.querySelector('#add-vehicle-btn').addEventListener('click', () => {
       this._addVehicle();
     });
 
+    // 点击其他地方关闭下拉框
     document.addEventListener('click', () => {
       this._closeAllDropdowns();
     });
   }
 
+  _removeAllEventListeners() {
+    // 克隆并替换元素来移除所有事件监听器
+    const newElement = this.cloneNode(true);
+    this.parentNode.replaceChild(newElement, this);
+  }
+
   _showEntitySearch(button) {
     this._closeAllDropdowns();
 
-    const userIndex = button.getAttribute('data-user-index');
-    const vehicleIndex = button.getAttribute('data-vehicle-index');
+    const type = button.getAttribute('data-type');
+    const index = button.getAttribute('data-index');
     const entityType = button.getAttribute('data-entity-type');
-    const inputPath = button.getAttribute('data-input');
 
     const input = button.previousElementSibling;
     const container = button.parentElement;
@@ -1171,16 +1191,13 @@ class DrivingLicenseEditor extends HTMLElement {
 
   _setupInputHandlers() {
     const setupInputHandler = (input) => {
-      const newInput = input.cloneNode(true);
-      input.parentNode.replaceChild(newInput, input);
-      
-      newInput.addEventListener('blur', (e) => {
+      input.addEventListener('blur', (e) => {
         e.preventDefault();
         e.stopPropagation();
         this._handleInputUpdate(e.target);
       });
       
-      newInput.addEventListener('input', (e) => {
+      input.addEventListener('input', (e) => {
         e.preventDefault();
         e.stopPropagation();
         
@@ -1197,9 +1214,9 @@ class DrivingLicenseEditor extends HTMLElement {
         e.stopPropagation();
       };
       
-      newInput.addEventListener('keydown', stopPropagation);
-      newInput.addEventListener('keyup', stopPropagation);
-      newInput.addEventListener('keypress', stopPropagation);
+      input.addEventListener('keydown', stopPropagation);
+      input.addEventListener('keyup', stopPropagation);
+      input.addEventListener('keypress', stopPropagation);
     };
 
     this.querySelectorAll('input[type="text"]').forEach(setupInputHandler);
@@ -1207,25 +1224,21 @@ class DrivingLicenseEditor extends HTMLElement {
 
   _handleInputUpdate(target) {
     const path = target.getAttribute('data-path');
-    
-    if (target.classList.contains('user-name')) {
-      const userIndex = parseInt(target.getAttribute('data-user-index'));
-      this._updateUserField(userIndex, 'name', target.value);
-    } else if (target.classList.contains('entity-input')) {
-      const userIndex = target.getAttribute('data-user-index');
-      const vehicleIndex = target.getAttribute('data-vehicle-index');
-      const entityType = target.getAttribute('data-entity-type');
+    const type = target.getAttribute('data-type');
+    const index = target.getAttribute('data-index');
+    const entityType = target.getAttribute('data-entity-type');
 
-      if (userIndex !== null) {
-        this._updateUserField(parseInt(userIndex), `entities.${entityType}`, target.value);
-      } else if (vehicleIndex !== null) {
-        if (entityType === 'plate_entity') {
-          this._updateVehicleField(parseInt(vehicleIndex), 'plate_entity', target.value);
-        } else {
-          this._updateVehicleField(parseInt(vehicleIndex), `entities.${entityType}`, target.value);
-        }
-      } else {
-        this._updateConfig(path, target.value);
+    if (type === 'user') {
+      if (path === 'name') {
+        this._updateUserField(parseInt(index), 'name', target.value);
+      } else if (entityType) {
+        this._updateUserField(parseInt(index), `entities.${entityType}`, target.value);
+      }
+    } else if (type === 'vehicle') {
+      if (entityType === 'plate_entity') {
+        this._updateVehicleField(parseInt(index), 'plate_entity', target.value);
+      } else if (entityType) {
+        this._updateVehicleField(parseInt(index), `entities.${entityType}`, target.value);
       }
     } else {
       this._updateConfig(path, target.value);
@@ -1323,4 +1336,4 @@ window.customCards.push({
   documentationURL: 'https://github.com/B361273068/ha-driving-license-card'
 });
 
-console.log('Driving License Card with complete editor loaded successfully');
+console.log('Driving License Card with fixed delete functionality loaded successfully');
