@@ -1,4 +1,4 @@
-// 主卡片类 - 修改样式和添加图标
+// 主卡片类保持不变
 class DrivingLicenseCard extends HTMLElement {
   constructor() {
     super();
@@ -496,7 +496,7 @@ class DrivingLicenseCard extends HTMLElement {
   }
 }
 
-// 编辑器类保持不变
+// 修改编辑器类 - 取消实体格式限制
 class DrivingLicenseEditor extends HTMLElement {
   constructor() {
     super();
@@ -579,7 +579,7 @@ class DrivingLicenseEditor extends HTMLElement {
                 value="${config.last_update_entity || ''}" 
                 data-path="last_update_entity"
                 class="config-input"
-                placeholder="sensor.last_update_time"
+                placeholder="输入实体ID，如: sensor.last_update_time"
               >
               <button class="search-btn" type="button" data-path="last_update_entity">搜索</button>
             </div>
@@ -837,7 +837,7 @@ class DrivingLicenseEditor extends HTMLElement {
                 data-index="${index}"
                 data-path="license_expiry"
                 class="config-input"
-                placeholder="sensor.license_expiry"
+                placeholder="输入实体ID，如: sensor.license_expiry_date"
               >
               <button class="search-btn" type="button" data-type="user" data-index="${index}" data-path="license_expiry">搜索</button>
             </div>
@@ -853,7 +853,7 @@ class DrivingLicenseEditor extends HTMLElement {
                 data-index="${index}"
                 data-path="license_status"
                 class="config-input"
-                placeholder="sensor.license_status"
+                placeholder="输入实体ID，如: sensor.license_status"
               >
               <button class="search-btn" type="button" data-type="user" data-index="${index}" data-path="license_status">搜索</button>
             </div>
@@ -869,7 +869,7 @@ class DrivingLicenseEditor extends HTMLElement {
                 data-index="${index}"
                 data-path="penalty_points"
                 class="config-input"
-                placeholder="sensor.penalty_points"
+                placeholder="输入实体ID，如: sensor.penalty_points"
               >
               <button class="search-btn" type="button" data-type="user" data-index="${index}" data-path="penalty_points">搜索</button>
             </div>
@@ -902,7 +902,7 @@ class DrivingLicenseEditor extends HTMLElement {
               data-index="${index}"
               data-path="plate_entity"
               class="config-input"
-              placeholder="sensor.car_plate"
+              placeholder="输入实体ID，如: sensor.car_plate"
             >
             <button class="search-btn" type="button" data-type="vehicle" data-index="${index}" data-path="plate_entity">搜索</button>
           </div>
@@ -919,7 +919,7 @@ class DrivingLicenseEditor extends HTMLElement {
                 data-index="${index}"
                 data-path="inspection_date"
                 class="config-input"
-                placeholder="sensor.inspection_date"
+                placeholder="输入实体ID，如: sensor.inspection_date"
               >
               <button class="search-btn" type="button" data-type="vehicle" data-index="${index}" data-path="inspection_date">搜索</button>
             </div>
@@ -935,7 +935,7 @@ class DrivingLicenseEditor extends HTMLElement {
                 data-index="${index}"
                 data-path="vehicle_status"
                 class="config-input"
-                placeholder="sensor.vehicle_status"
+                placeholder="输入实体ID，如: sensor.vehicle_status"
               >
               <button class="search-btn" type="button" data-type="vehicle" data-index="${index}" data-path="vehicle_status">搜索</button>
             </div>
@@ -951,7 +951,7 @@ class DrivingLicenseEditor extends HTMLElement {
                 data-index="${index}"
                 data-path="violations"
                 class="config-input"
-                placeholder="sensor.violations"
+                placeholder="输入实体ID，如: sensor.violations_count"
               >
               <button class="search-btn" type="button" data-type="vehicle" data-index="${index}" data-path="violations">搜索</button>
             </div>
@@ -1050,7 +1050,7 @@ class DrivingLicenseEditor extends HTMLElement {
         value="${this._searchKeyword}"
       >
       <div style="font-size: 11px; color: var(--secondary-text-color); margin-top: 4px;">
-        支持按实体ID、名称或状态搜索
+        支持按实体ID、名称或状态搜索 - 显示所有可用实体
       </div>
     `;
     dropdown.appendChild(searchHeader);
@@ -1058,14 +1058,14 @@ class DrivingLicenseEditor extends HTMLElement {
     const resultsContainer = document.createElement('div');
     dropdown.appendChild(resultsContainer);
 
-    // 初始显示过滤后的实体
-    this.updateSearchResults(resultsContainer, entities, path, this._searchKeyword);
+    // 初始显示所有实体（不进行类型过滤）
+    this.updateSearchResults(resultsContainer, entities, this._searchKeyword);
 
     // 搜索框输入事件
     const searchInput = searchHeader.querySelector('.search-input');
     searchInput.addEventListener('input', (e) => {
       this._searchKeyword = e.target.value;
-      this.updateSearchResults(resultsContainer, entities, path, this._searchKeyword);
+      this.updateSearchResults(resultsContainer, entities, this._searchKeyword);
     });
 
     searchInput.addEventListener('click', (e) => {
@@ -1077,13 +1077,13 @@ class DrivingLicenseEditor extends HTMLElement {
     container.appendChild(dropdown);
   }
 
-  updateSearchResults(container, entities, entityType, keyword = '') {
-    let filteredEntities = this.filterEntitiesByType(entities, entityType);
+  updateSearchResults(container, entities, keyword = '') {
+    let filteredEntities = entities; // 不再进行类型过滤
     
-    // 关键字搜索
+    // 只进行关键字搜索
     if (keyword) {
       const lowerKeyword = keyword.toLowerCase();
-      filteredEntities = filteredEntities.filter(entity => 
+      filteredEntities = entities.filter(entity => 
         entity.entity_id.toLowerCase().includes(lowerKeyword) ||
         (entity.state && entity.state.toLowerCase().includes(lowerKeyword)) ||
         (entity.attributes && entity.attributes.friendly_name && 
@@ -1128,58 +1128,7 @@ class DrivingLicenseEditor extends HTMLElement {
     }));
   }
 
-  filterEntitiesByType(entities, entityType) {
-    let filteredEntities = entities;
-    
-    // 根据实体类型过滤
-    switch (entityType) {
-      case 'license_expiry':
-      case 'inspection_date':
-        filteredEntities = entities.filter(entity => 
-          entity.entity_id.includes('date') || 
-          entity.entity_id.includes('expiry') ||
-          entity.entity_id.includes('inspection') ||
-          entity.entity_id.includes('renew') ||
-          entity.entity_id.includes('valid')
-        );
-        break;
-        
-      case 'license_status':
-      case 'vehicle_status':
-        filteredEntities = entities.filter(entity => 
-          entity.entity_id.includes('status') ||
-          entity.entity_id.includes('state')
-        );
-        break;
-        
-      case 'penalty_points':
-      case 'violations':
-        filteredEntities = entities.filter(entity => 
-          entity.entity_id.includes('point') || 
-          entity.entity_id.includes('violation') ||
-          entity.entity_id.includes('penalty')
-        );
-        break;
-        
-      case 'plate_entity':
-        filteredEntities = entities.filter(entity => 
-          entity.entity_id.includes('plate') || 
-          entity.entity_id.includes('car') ||
-          entity.entity_id.includes('vehicle')
-        );
-        break;
-        
-      case 'last_update_entity':
-        filteredEntities = entities.filter(entity => 
-          entity.entity_id.includes('update') || 
-          entity.entity_id.includes('time') ||
-          entity.entity_id.includes('last')
-        );
-        break;
-    }
-
-    return filteredEntities;
-  }
+  // 移除 filterEntitiesByType 方法，不再需要实体类型过滤
 
   closeAllDropdowns() {
     this.querySelectorAll('.entity-dropdown').forEach(dropdown => {
@@ -1295,4 +1244,4 @@ window.customCards.push({
   preview: true
 });
 
-console.log('Driving License Card with enhanced styling and icons loaded successfully');
+console.log('Driving License Card with no entity restrictions loaded successfully');
