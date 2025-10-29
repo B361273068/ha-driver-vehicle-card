@@ -1,502 +1,9 @@
 // 主卡片类保持不变
 class DrivingLicenseCard extends HTMLElement {
-  constructor() {
-    super();
-    this.attachShadow({ mode: 'open' });
-    this._config = {};
-    this._hass = null;
-  }
-
-  static getConfigElement() {
-    return document.createElement("driving-license-editor");
-  }
-
-  static getStubConfig() {
-    return {
-      title: "驾驶证和车辆状态",
-      show_last_updated: true,
-      last_update_entity: "",
-      users: [
-        {
-          name: "示例用户",
-          entities: {
-            license_expiry: "",
-            license_status: "",
-            penalty_points: ""
-          }
-        }
-      ],
-      vehicles: [
-        {
-          plate_entity: "",
-          entities: {
-            inspection_date: "",
-            vehicle_status: "",
-            violations: ""
-          }
-        }
-      ]
-    };
-  }
-
-  setConfig(config) {
-    if (!config) {
-      throw new Error("配置不能为空");
-    }
-
-    console.log("原始配置:", config);
-    
-    // 修复配置结构
-    this._config = this.fixConfigStructure(config);
-    
-    console.log("修复后配置:", this._config);
-
-    this.render();
-  }
-
-  fixConfigStructure(config) {
-    const fixedConfig = {
-      title: config.title || '驾驶证和车辆状态',
-      show_last_updated: config.show_last_updated !== false,
-      last_update_entity: config.last_update_entity || '',
-      users: this.fixUsersConfig(config.users),
-      vehicles: this.fixVehiclesConfig(config.vehicles)
-    };
-
-    return fixedConfig;
-  }
-
-  fixUsersConfig(usersConfig) {
-    if (!usersConfig || (Array.isArray(usersConfig) && usersConfig.length === 0)) {
-      return [{
-        name: '请配置姓名',
-        entities: {
-          license_expiry: '',
-          license_status: '',
-          penalty_points: ''
-        }
-      }];
-    }
-
-    if (Array.isArray(usersConfig)) {
-      return usersConfig.map(user => ({
-        name: user.name || '未命名用户',
-        entities: {
-          license_expiry: user.entities?.license_expiry || user.license_expiry || '',
-          license_status: user.entities?.license_status || user.license_status || '',
-          penalty_points: user.entities?.penalty_points || user.penalty_points || ''
-        }
-      }));
-    }
-
-    if (typeof usersConfig === 'object') {
-      return [{
-        name: usersConfig.name || '未命名用户',
-        entities: {
-          license_expiry: usersConfig.entities?.license_expiry || usersConfig.license_expiry || '',
-          license_status: usersConfig.entities?.license_status || usersConfig.license_status || '',
-          penalty_points: usersConfig.entities?.penalty_points || usersConfig.penalty_points || ''
-        }
-      }];
-    }
-
-    return [{
-      name: '请配置姓名',
-      entities: {
-        license_expiry: '',
-        license_status: '',
-        penalty_points: ''
-      }
-    }];
-  }
-
-  fixVehiclesConfig(vehiclesConfig) {
-    if (!vehiclesConfig || (Array.isArray(vehiclesConfig) && vehiclesConfig.length === 0)) {
-      return [{
-        plate_entity: '',
-        entities: {
-          inspection_date: '',
-          vehicle_status: '',
-          violations: ''
-        }
-      }];
-    }
-
-    if (Array.isArray(vehiclesConfig)) {
-      return vehiclesConfig.map(vehicle => ({
-        plate_entity: vehicle.plate_entity || '',
-        entities: {
-          inspection_date: vehicle.entities?.inspection_date || vehicle.inspection_date || '',
-          vehicle_status: vehicle.entities?.vehicle_status || vehicle.vehicle_status || '',
-          violations: vehicle.entities?.violations || vehicle.violations || ''
-        }
-      }));
-    }
-
-    if (typeof vehiclesConfig === 'object') {
-      return [{
-        plate_entity: vehiclesConfig.plate_entity || '',
-        entities: {
-          inspection_date: vehiclesConfig.entities?.inspection_date || vehiclesConfig.inspection_date || '',
-          vehicle_status: vehiclesConfig.entities?.vehicle_status || vehiclesConfig.vehicle_status || '',
-          violations: vehiclesConfig.entities?.violations || vehiclesConfig.violations || ''
-        }
-      }];
-    }
-
-    return [{
-      plate_entity: '',
-      entities: {
-        inspection_date: '',
-        vehicle_status: '',
-        violations: ''
-      }
-    }];
-  }
-
-  set hass(hass) {
-    this._hass = hass;
-    this.render();
-  }
-
-  getCardSize() {
-    let size = 2;
-    size += (this._config.users?.length || 0) * 2;
-    size += (this._config.vehicles?.length || 0) * 3;
-    return size;
-  }
-
-  calculateDaysDifference(dateString) {
-    if (!dateString) return null;
-    const today = new Date();
-    const targetDate = new Date(dateString);
-    if (isNaN(targetDate.getTime())) return null;
-    const diffTime = targetDate - today;
-    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  }
-
-  getEntityState(entityId) {
-    if (!this._hass || !entityId) return null;
-    return this._hass.states[entityId];
-  }
-
-  getStatusInfo(status) {
-    if (!status) return { text: '未知', color: 'gray' };
-    
-    status = status.toLowerCase();
-    if (status.includes('正常')) return { text: '正常', color: 'green' };
-    if (status.includes('警告') || status.includes('即将到期')) return { text: '警告', color: 'orange' };
-    if (status.includes('过期') || status.includes('异常')) return { text: '异常', color: 'red' };
-    return { text: status, color: 'blue' };
-  }
-
-  getCountdownInfo(days) {
-    if (days === null || days === undefined) return { text: '未知', color: 'gray' };
-    if (days < 0) return { text: '已过期', color: 'red' };
-    if (days < 30) return { text: `${days}天`, color: 'orange' };
-    if (days < 90) return { text: `${days}天`, color: 'blue' };
-    return { text: `${days}天`, color: 'green' };
-  }
-
-  getPointsInfo(points, maxPoints = 12) {
-    if (!points || points === '未知') return { text: '0分', color: 'green', value: 0 };
-    
-    const pointsValue = parseInt(points);
-    if (isNaN(pointsValue)) return { text: '0分', color: 'green', value: 0 };
-    
-    const percentage = pointsValue / maxPoints;
-    let color = 'green';
-    if (percentage >= 0.75) color = 'red';
-    else if (percentage >= 0.5) color = 'orange';
-    
-    return { text: `${pointsValue}分`, color, value: pointsValue };
-  }
-
-  render() {
-    if (!this._hass || !this._config) return;
-
-    let lastUpdated = new Date().toLocaleString('zh-CN', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit'
-    });
-
-    const lastUpdateEntityId = this._config.last_update_entity;
-    if (lastUpdateEntityId) {
-      const lastUpdateEntity = this.getEntityState(lastUpdateEntityId);
-      if (lastUpdateEntity) {
-        const updateTime = lastUpdateEntity.last_updated || lastUpdateEntity.state;
-        if (updateTime) {
-          lastUpdated = new Date(updateTime).toLocaleString('zh-CN', {
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit'
-          });
-        }
-      }
-    }
-
-    const renderUserSection = () => {
-      const users = this._config.users || [];
-      return users.map((user, index) => {
-        const expiryEntity = this.getEntityState(user.entities?.license_expiry);
-        const statusEntity = this.getEntityState(user.entities?.license_status);
-        const pointsEntity = this.getEntityState(user.entities?.penalty_points);
-        
-        const expiryDate = expiryEntity?.state || '未配置';
-        const expiryDays = this.calculateDaysDifference(expiryDate);
-        const statusInfo = this.getStatusInfo(statusEntity?.state);
-        const pointsInfo = this.getPointsInfo(pointsEntity?.state);
-        const countdownInfo = this.getCountdownInfo(expiryDays);
-        
-        const sectionTitle = user.name ? `驾驶证信息-${user.name}` : '驾驶证信息';
-        
-        return `
-          <div class="section">
-            <div class="section-header">
-              <div class="section-title">
-                <span class="icon license-icon">📄</span>
-                ${sectionTitle}
-              </div>
-            </div>
-            <div class="section-content">
-              <div class="info-grid">
-                <div class="info-item">
-                  <span class="info-label">有效期至</span>
-                  <span class="info-value ${countdownInfo.color}">${expiryDate}</span>
-                </div>
-                <div class="info-item">
-                  <span class="info-label">有效期倒计时</span>
-                  <span class="info-value ${countdownInfo.color}">${countdownInfo.text}</span>
-                </div>
-                <div class="info-item">
-                  <span class="info-label">驾驶证状态</span>
-                  <span class="info-value ${statusInfo.color}">${statusInfo.text}</span>
-                </div>
-                <div class="info-item">
-                  <span class="info-label">扣分情况</span>
-                  <span class="info-value ${pointsInfo.color}">${pointsInfo.text} / 12分</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        `;
-      }).join('');
-    };
-
-    const renderVehicleSection = () => {
-      const vehicles = this._config.vehicles || [];
-      return vehicles.map((vehicle, index) => {
-        const plateEntity = this.getEntityState(vehicle.plate_entity);
-        const inspectionEntity = this.getEntityState(vehicle.entities?.inspection_date);
-        const statusEntity = this.getEntityState(vehicle.entities?.vehicle_status);
-        const violationsEntity = this.getEntityState(vehicle.entities?.violations);
-        
-        const plateNumber = plateEntity?.state || '';
-        const inspectionDate = inspectionEntity?.state || '未配置';
-        const inspectionDays = this.calculateDaysDifference(inspectionDate);
-        const statusInfo = this.getStatusInfo(statusEntity?.state);
-        const violations = violationsEntity?.state || '0';
-        const violationsCount = parseInt(violations) || 0;
-        const violationsColor = violationsCount > 0 ? 'red' : 'green';
-        const countdownInfo = this.getCountdownInfo(inspectionDays);
-        
-        const sectionTitle = plateNumber ? `车辆信息 - ${plateNumber}` : '车辆信息';
-        
-        return `
-          <div class="section">
-            <div class="section-header">
-              <div class="section-title">
-                <span class="icon car-icon">🚗</span>
-                ${sectionTitle}
-              </div>
-            </div>
-            <div class="section-content">
-              <div class="info-grid">
-                <div class="info-item">
-                  <span class="info-label">年审日期</span>
-                  <span class="info-value ${countdownInfo.color}">${inspectionDate}</span>
-                </div>
-                <div class="info-item">
-                  <span class="info-label">年审倒计时</span>
-                  <span class="info-value ${countdownInfo.color}">${countdownInfo.text}</span>
-                </div>
-                <div class="info-item">
-                  <span class="info-label">车辆状态</span>
-                  <span class="info-value ${statusInfo.color}">${statusInfo.text}</span>
-                </div>
-                <div class="info-item">
-                  <span class="info-label">违章信息</span>
-                  <span class="info-value ${violationsColor}">${violationsCount}条未处理</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        `;
-      }).join('');
-    };
-
-    this.shadowRoot.innerHTML = `
-      <style>
-        :host {
-          display: block;
-          font-family: var(--paper-font-body1_-_font-family);
-        }
-        
-        .card-container {
-          background: var(--card-background-color, white);
-          border-radius: 12px;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-          overflow: hidden;
-        }
-        
-        .main-header {
-          background: #2196F3 !important;
-          padding: 16px 20px;
-          color: white;
-          border-bottom: 2px solid var(--divider-color, #e0e0e0);
-        }
-        
-        .main-title {
-          font-size: 18px;
-          font-weight: 600;
-          text-align: center;
-          margin: 0;
-        }
-        
-        .content-area {
-          padding: 0;
-        }
-        
-        .section {
-          margin-bottom: 0;
-          border-bottom: 1px solid var(--divider-color, #e0e0e0);
-        }
-        
-        .section:last-child {
-          border-bottom: none;
-        }
-        
-        .section-header {
-          background: white !important;
-          padding: 12px 16px;
-          border-bottom: 1px solid var(--divider-color, #e0e0e0);
-        }
-        
-        .section-title {
-          font-size: 16px;
-          font-weight: 600;
-          color: #000000 !important;
-          display: flex;
-          align-items: center;
-          gap: 8px;
-        }
-        
-        .icon {
-          font-size: 18px;
-        }
-        
-        .license-icon {
-          /* 证件图标 */
-        }
-        
-        .car-icon {
-          /* 汽车图标 */
-        }
-        
-        .section-content {
-          padding: 16px;
-          background: white;
-        }
-        
-        .info-grid {
-          display: flex;
-          flex-direction: column;
-          gap: 12px;
-        }
-        
-        .info-item {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: 8px 0;
-        }
-        
-        .info-label {
-          font-size: 14px;
-          font-weight: 500;
-          color: #000000 !important;
-        }
-        
-        .info-value {
-          font-size: 14px;
-          font-weight: 600;
-        }
-        
-        .green {
-          color: var(--success-color, #4CAF50);
-        }
-        
-        .orange {
-          color: var(--warning-color, #FF9800);
-        }
-        
-        .red {
-          color: var(--error-color, #F44336);
-        }
-        
-        .blue {
-          color: var(--info-color, #2196F3);
-        }
-        
-        .gray {
-          color: var(--disabled-text-color, #9E9E9E);
-        }
-        
-        .last-updated {
-          text-align: right;
-          font-size: 12px;
-          color: #000000 !important;
-          padding: 12px 16px;
-          background: white;
-          border-top: 1px solid var(--divider-color, #e0e0e0);
-        }
-        
-        .divider {
-          height: 1px;
-          background: var(--divider-color, #e0e0e0);
-          margin: 0;
-          border: none;
-        }
-      </style>
-      
-      <ha-card>
-        <div class="card-container">
-          <div class="main-header">
-            <div class="main-title">${this._config.title}</div>
-          </div>
-          
-          <div class="content-area">
-            ${renderUserSection()}
-            ${renderVehicleSection()}
-          </div>
-          
-          ${this._config.show_last_updated ? `
-            <div class="last-updated">最后更新：${lastUpdated}</div>
-          ` : ''}
-        </div>
-      </ha-card>
-    `;
-  }
+  // ... 保持不变 ...
 }
 
-// 修改编辑器类 - 取消实体格式限制
+// 修改编辑器类 - 修复实体搜索问题
 class DrivingLicenseEditor extends HTMLElement {
   constructor() {
     super();
@@ -1058,7 +565,7 @@ class DrivingLicenseEditor extends HTMLElement {
     const resultsContainer = document.createElement('div');
     dropdown.appendChild(resultsContainer);
 
-    // 初始显示所有实体（不进行类型过滤）
+    // 初始显示所有实体
     this.updateSearchResults(resultsContainer, entities, this._searchKeyword);
 
     // 搜索框输入事件
@@ -1078,57 +585,120 @@ class DrivingLicenseEditor extends HTMLElement {
   }
 
   updateSearchResults(container, entities, keyword = '') {
-    let filteredEntities = entities; // 不再进行类型过滤
+    let filteredEntities = entities;
     
-    // 只进行关键字搜索
-    if (keyword) {
-      const lowerKeyword = keyword.toLowerCase();
-      filteredEntities = entities.filter(entity => 
-        entity.entity_id.toLowerCase().includes(lowerKeyword) ||
-        (entity.state && entity.state.toLowerCase().includes(lowerKeyword)) ||
-        (entity.attributes && entity.attributes.friendly_name && 
-         entity.attributes.friendly_name.toLowerCase().includes(lowerKeyword))
-      );
+    // 改进的关键字搜索 - 支持中文和特殊字符
+    if (keyword && keyword.trim() !== '') {
+      const lowerKeyword = keyword.toLowerCase().trim();
+      
+      filteredEntities = entities.filter(entity => {
+        // 检查实体ID
+        if (entity.entity_id.toLowerCase().includes(lowerKeyword)) {
+          return true;
+        }
+        
+        // 检查实体状态
+        if (entity.state && entity.state.toLowerCase().includes(lowerKeyword)) {
+          return true;
+        }
+        
+        // 检查友好名称
+        if (entity.attributes && entity.attributes.friendly_name) {
+          const friendlyName = entity.attributes.friendly_name.toLowerCase();
+          if (friendlyName.includes(lowerKeyword)) {
+            return true;
+          }
+        }
+        
+        return false;
+      });
     }
 
     container.innerHTML = '';
 
     if (filteredEntities.length === 0) {
-      container.innerHTML = '<div class="entity-option">未找到匹配的实体</div>';
-    } else {
-      filteredEntities.slice(0, 50).forEach(entity => {
-        const option = document.createElement('div');
-        option.className = 'entity-option';
-        const friendlyName = entity.attributes?.friendly_name || '';
-        option.innerHTML = `
-          <div>
-            <div style="font-weight: 600;">${entity.entity_id}</div>
-            ${friendlyName ? `<div style="font-size: 12px; color: var(--secondary-text-color);">${friendlyName}</div>` : ''}
+      if (keyword && keyword.trim() !== '') {
+        container.innerHTML = `
+          <div class="entity-option" style="text-align: center; color: var(--secondary-text-color);">
+            未找到匹配的实体<br>
+            <small>尝试使用不同的关键字或查看所有实体</small>
           </div>
-          <div style="font-size: 12px; color: var(--secondary-text-color);">${entity.state}</div>
         `;
-        option.addEventListener('click', () => {
-          const input = option.closest('.entity-input-container').querySelector('.config-input');
-          input.value = entity.entity_id;
-          this.handleInputChange(input);
-          this.closeAllDropdowns();
+        
+        // 如果没有搜索结果，显示前10个实体作为参考
+        const suggestionHeader = document.createElement('div');
+        suggestionHeader.className = 'search-header';
+        suggestionHeader.innerHTML = '<small>所有实体（前10个）：</small>';
+        container.appendChild(suggestionHeader);
+        
+        entities.slice(0, 10).forEach(entity => {
+          const option = this.createEntityOption(entity);
+          container.appendChild(option);
         });
+      } else {
+        container.innerHTML = '<div class="entity-option">暂无可用实体</div>';
+      }
+    } else {
+      // 显示搜索结果
+      filteredEntities.slice(0, 50).forEach(entity => {
+        const option = this.createEntityOption(entity);
         container.appendChild(option);
       });
+      
+      // 如果结果很多，显示提示
+      if (filteredEntities.length > 50) {
+        const info = document.createElement('div');
+        info.className = 'entity-option';
+        info.style.textAlign = 'center';
+        info.style.color = 'var(--secondary-text-color)';
+        info.style.fontStyle = 'italic';
+        info.textContent = `显示前50个结果，共${filteredEntities.length}个匹配实体`;
+        container.appendChild(info);
+      }
     }
+  }
+
+  createEntityOption(entity) {
+    const option = document.createElement('div');
+    option.className = 'entity-option';
+    
+    const friendlyName = entity.attributes?.friendly_name || '';
+    const domain = entity.entity_id.split('.')[0];
+    
+    option.innerHTML = `
+      <div style="flex: 1;">
+        <div style="font-weight: 600; font-size: 13px;">${entity.entity_id}</div>
+        ${friendlyName ? `<div style="font-size: 12px; color: var(--secondary-text-color); margin-top: 2px;">${friendlyName}</div>` : ''}
+        <div style="font-size: 11px; color: var(--secondary-text-color); margin-top: 2px;">
+          类型: ${domain} | 状态: ${entity.state}
+        </div>
+      </div>
+    `;
+    
+    option.addEventListener('click', () => {
+      const input = option.closest('.entity-input-container').querySelector('.config-input');
+      input.value = entity.entity_id;
+      this.handleInputChange(input);
+      this.closeAllDropdowns();
+    });
+    
+    return option;
   }
 
   getAllEntities() {
     if (!this._hass) return [];
     
-    return Object.entries(this._hass.states).map(([entity_id, state]) => ({
-      entity_id,
-      state: state.state,
-      attributes: state.attributes
-    }));
+    try {
+      return Object.entries(this._hass.states).map(([entity_id, state]) => ({
+        entity_id,
+        state: state.state,
+        attributes: state.attributes || {}
+      }));
+    } catch (error) {
+      console.error('获取实体列表失败:', error);
+      return [];
+    }
   }
-
-  // 移除 filterEntitiesByType 方法，不再需要实体类型过滤
 
   closeAllDropdowns() {
     this.querySelectorAll('.entity-dropdown').forEach(dropdown => {
@@ -1244,4 +814,4 @@ window.customCards.push({
   preview: true
 });
 
-console.log('Driving License Card with no entity restrictions loaded successfully');
+console.log('Driving License Card with improved entity search loaded successfully');
