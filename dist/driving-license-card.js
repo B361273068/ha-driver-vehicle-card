@@ -1,4 +1,4 @@
-// 主卡片类 - 保持不变
+// 主卡片类 - 修改为垂直布局
 class DrivingLicenseCard extends HTMLElement {
   constructor() {
     super();
@@ -166,7 +166,7 @@ class DrivingLicenseCard extends HTMLElement {
       }
     }
 
-    const renderUserCards = () => {
+    const renderUserSection = () => {
       return this._config.users.map((user, index) => {
         const expiryEntity = this.getEntityState(user.entities?.license_expiry);
         const statusEntity = this.getEntityState(user.entities?.license_status);
@@ -179,26 +179,28 @@ class DrivingLicenseCard extends HTMLElement {
         const countdownInfo = this.getCountdownInfo(expiryDays);
         
         return `
-          <div class="info-section">
+          <div class="section">
             <div class="section-header">
               <div class="section-title">驾驶证信息</div>
             </div>
-            <div class="info-content">
-              <div class="info-item">
-                <span class="info-label">有效期至</span>
-                <span class="info-value">${expiryDate || '未配置'}</span>
-              </div>
-              <div class="info-item">
-                <span class="info-label">有效期倒计时</span>
-                <span class="info-value ${countdownInfo.color}">${countdownInfo.text}</span>
-              </div>
-              <div class="info-item">
-                <span class="info-label">驾驶证状态</span>
-                <span class="info-value ${statusInfo.color}">${statusInfo.text}</span>
-              </div>
-              <div class="info-item">
-                <span class="info-label">扣分情况</span>
-                <span class="info-value ${pointsInfo.color}">${pointsInfo.text} / 12分</span>
+            <div class="section-content">
+              <div class="info-grid">
+                <div class="info-item">
+                  <span class="info-label">有效期至</span>
+                  <span class="info-value">${expiryDate || '未配置'}</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">有效期倒计时</span>
+                  <span class="info-value ${countdownInfo.color}">${countdownInfo.text}</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">驾驶证状态</span>
+                  <span class="info-value ${statusInfo.color}">${statusInfo.text}</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">扣分情况</span>
+                  <span class="info-value ${pointsInfo.color}">${pointsInfo.text} / 12分</span>
+                </div>
               </div>
             </div>
           </div>
@@ -206,7 +208,7 @@ class DrivingLicenseCard extends HTMLElement {
       }).join('');
     };
 
-    const renderVehicleCards = () => {
+    const renderVehicleSection = () => {
       return this._config.vehicles.map((vehicle, index) => {
         const plateEntity = this.getEntityState(vehicle.plate_entity);
         const inspectionEntity = this.getEntityState(vehicle.entities?.inspection_date);
@@ -222,26 +224,28 @@ class DrivingLicenseCard extends HTMLElement {
         const countdownInfo = this.getCountdownInfo(inspectionDays);
         
         return `
-          <div class="info-section">
+          <div class="section">
             <div class="section-header">
               <div class="section-title">车辆信息</div>
             </div>
-            <div class="info-content">
-              <div class="info-item">
-                <span class="info-label">年审日期</span>
-                <span class="info-value">${inspectionDate || '未配置'}</span>
-              </div>
-              <div class="info-item">
-                <span class="info-label">年审倒计时</span>
-                <span class="info-value ${countdownInfo.color}">${countdownInfo.text}</span>
-              </div>
-              <div class="info-item">
-                <span class="info-label">车辆状态</span>
-                <span class="info-value ${statusInfo.color}">${statusInfo.text}</span>
-              </div>
-              <div class="info-item">
-                <span class="info-label">违章信息</span>
-                <span class="info-value ${violationsCount > 0 ? 'red' : 'green'}">${violationsCount}条未处理</span>
+            <div class="section-content">
+              <div class="info-grid">
+                <div class="info-item">
+                  <span class="info-label">年审日期</span>
+                  <span class="info-value">${inspectionDate || '未配置'}</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">年审倒计时</span>
+                  <span class="info-value ${countdownInfo.color}">${countdownInfo.text}</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">车辆状态</span>
+                  <span class="info-value ${statusInfo.color}">${statusInfo.text}</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">违章信息</span>
+                  <span class="info-value ${violationsCount > 0 ? 'red' : 'green'}">${violationsCount}条未处理</span>
+                </div>
               </div>
             </div>
           </div>
@@ -257,35 +261,40 @@ class DrivingLicenseCard extends HTMLElement {
         }
         
         .card-container {
-          padding: 16px;
+          background: var(--card-background-color, white);
+          border-radius: 12px;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+          overflow: hidden;
+        }
+        
+        .main-header {
+          background: var(--primary-color, #2196F3);
+          padding: 16px 20px;
+          color: white;
         }
         
         .main-title {
           font-size: 18px;
           font-weight: 600;
-          margin-bottom: 20px;
-          color: var(--primary-text-color);
           text-align: center;
-          padding-bottom: 12px;
-          border-bottom: 1px solid var(--divider-color);
+          margin: 0;
         }
         
-        .sections-container {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 20px;
-          margin-bottom: 20px;
+        .content-area {
+          padding: 0;
         }
         
-        .info-section {
-          background: var(--card-background-color);
-          border-radius: 8px;
-          border: 1px solid var(--divider-color);
-          overflow: hidden;
+        .section {
+          margin-bottom: 0;
+          border-bottom: 1px solid var(--divider-color, #e0e0e0);
+        }
+        
+        .section:last-child {
+          border-bottom: none;
         }
         
         .section-header {
-          background: var(--primary-color);
+          background: var(--primary-color, #2196F3);
           padding: 12px 16px;
           color: white;
         }
@@ -293,35 +302,36 @@ class DrivingLicenseCard extends HTMLElement {
         .section-title {
           font-size: 16px;
           font-weight: 600;
-          text-align: center;
         }
         
-        .info-content {
+        .section-content {
           padding: 16px;
+          background: white;
+        }
+        
+        .info-grid {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
         }
         
         .info-item {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          padding: 10px 0;
-          border-bottom: 1px solid var(--divider-color);
-        }
-        
-        .info-item:last-child {
-          border-bottom: none;
+          padding: 8px 0;
         }
         
         .info-label {
           font-size: 14px;
-          color: var(--secondary-text-color);
+          color: var(--secondary-text-color, #666);
           font-weight: 500;
         }
         
         .info-value {
           font-size: 14px;
           font-weight: 600;
-          color: var(--primary-text-color);
+          color: var(--primary-text-color, #333);
         }
         
         /* 颜色样式 */
@@ -348,59 +358,74 @@ class DrivingLicenseCard extends HTMLElement {
         .last-updated {
           text-align: center;
           font-size: 12px;
-          color: var(--secondary-text-color);
-          padding: 8px 12px;
-          background: var(--secondary-background-color);
-          border-radius: 4px;
-          border: 1px solid var(--divider-color);
+          color: var(--secondary-text-color, #666);
+          padding: 12px 16px;
+          background: var(--secondary-background-color, #f5f5f5);
+          border-top: 1px solid var(--divider-color, #e0e0e0);
         }
         
         @media (max-width: 768px) {
-          .sections-container {
-            grid-template-columns: 1fr;
-            gap: 16px;
-          }
-          
-          .info-content {
-            padding: 12px;
-          }
-          
-          .info-item {
-            padding: 8px 0;
-          }
-        }
-        
-        @media (max-width: 480px) {
-          .card-container {
-            padding: 12px;
+          .main-header {
+            padding: 14px 16px;
           }
           
           .main-title {
             font-size: 16px;
-            margin-bottom: 16px;
           }
           
           .section-header {
-            padding: 10px 12px;
+            padding: 10px 14px;
           }
           
           .section-title {
             font-size: 15px;
           }
           
+          .section-content {
+            padding: 14px;
+          }
+          
+          .info-item {
+            padding: 6px 0;
+          }
+          
           .info-label, .info-value {
             font-size: 13px;
+          }
+        }
+        
+        @media (max-width: 480px) {
+          .main-header {
+            padding: 12px 14px;
+          }
+          
+          .main-title {
+            font-size: 15px;
+          }
+          
+          .section-header {
+            padding: 8px 12px;
+          }
+          
+          .section-title {
+            font-size: 14px;
+          }
+          
+          .section-content {
+            padding: 12px;
           }
         }
       </style>
       
       <ha-card>
         <div class="card-container">
-          <div class="main-title">${this._config.title}</div>
+          <div class="main-header">
+            <div class="main-title">${this._config.title}</div>
+          </div>
           
-          <div class="sections-container">
-            ${renderUserCards()}
-            ${renderVehicleCards()}
+          <div class="content-area">
+            ${renderUserSection()}
+            ${renderVehicleSection()}
           </div>
           
           ${this._config.show_last_updated ? `
@@ -412,7 +437,7 @@ class DrivingLicenseCard extends HTMLElement {
   }
 }
 
-// 编辑器类 - 增加实体搜索功能
+// 编辑器类保持不变（使用之前带有实体搜索功能的版本）
 class DrivingLicenseEditor extends HTMLElement {
   constructor() {
     super();
@@ -1228,4 +1253,4 @@ window.customCards.push({
   documentationURL: 'https://github.com/B361273068/ha-driving-license-card'
 });
 
-console.log('Driving License Card with entity search functionality loaded successfully');
+console.log('Driving License Card with vertical layout loaded successfully');
